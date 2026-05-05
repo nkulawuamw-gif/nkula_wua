@@ -1,0 +1,452 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Record Payment{% endblock %}
+
+{% block content %}
+<style>
+/* Mobile-friendly autocomplete dropdown */
+#beneficiary-dropdown {
+    max-height: 300px;
+    overflow-y: auto;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 1050 !important;
+}
+
+#beneficiary-dropdown .p-2:hover,
+#beneficiary-dropdown .bg-light {
+    background-color: #f8f9fa !important;
+}
+
+#beneficiary-dropdown .p-2 {
+    padding: 10px !important;
+    border-bottom: 1px solid #dee2e6;
+}
+
+@media (max-width: 768px) {
+    #beneficiary-dropdown {
+        max-height: 200px;
+    }
+
+    #beneficiary-dropdown .p-2 {
+        padding: 12px !important;
+        font-size: 14px;
+    }
+}
+</style>
+{% load custom_filters %}
+{% with symbol=user.userprofile.get_currency_symbol %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>Record Payment</h4>
+    <a href="{% url 'payment_list' %}" class="btn btn-secondary">View Payments</a>
+</div>
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="card border-0 shadow-sm" style="border-radius: 16px;">
+            <div class="card-body p-4">
+                <h5 class="mb-4 fw-bold"><i class="bi bi-cash me-2"></i>Record Payment</h5>
+                <form method="post" id="payment-form">
+                    {% csrf_token %}
+                    <div class="card bg-light border-0 mb-3" style="border-radius: 12px;">
+                        <div class="card-body py-3">
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <small class="text-muted d-block">Total Invoiced</small>
+                                    <strong id="total-invoiced-display" class="text-primary">{{ symbol }}0.00</strong>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-muted d-block">Total Paid</small>
+                                    <strong id="total-paid-display" class="text-info">{{ symbol }}0.00</strong>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-muted d-block">Outstanding</small>
+                                    <strong id="outstanding-display" class="text-danger">{{ symbol }}0.00</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="invoice-details" class="card bg-light border-0 mb-3" style="border-radius: 12px; display: none;">
+                        <div class="card-body py-3">
+                            <h6 class="mb-2"><i class="bi bi-receipt"></i> Outstanding Invoices</h6>
+                            <div id="invoice-list" style="max-height: 150px; overflow-y: auto;"></div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Invoice Reference (Optional)</label>
+                        <select name="invoice" id="invoice-select" class="form-control" onchange="applyInvoiceAmount()">
+                            <option value="">-- All Outstanding Invoices --</option>
+                            {% if pre_selected_invoice_id %}
+                            <option value="{{ pre_selected_invoice_id }}" selected data-amount="{{ pre_selected_invoice_amount_due }}">
+                                {{ pre_selected_invoice_number }} - Due: {{ symbol }}{{ pre_selected_invoice_amount_due|floatformat:2 }}
+                            </option>
+                            {% endif %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Search Beneficiary</label>
+                        <div class="position-relative">
+                            <input type="text" id="beneficiary-search" class="form-control" placeholder="Type to search by name, phone, or ID..." autocomplete="off">
+                            <input type="hidden" name="beneficiary" id="beneficiary-select" required>
+                            <div id="beneficiary-dropdown" class="position-absolute w-100 bg-white border rounded shadow-sm" style="display: none; z-index: 1000; max-height: 300px; overflow-y: auto;"></div>
+                            <div id="no-beneficiary-msg" class="text-danger mt-1" style="display: none;">No beneficiary found</div>
+                        </div>
+                        <small id="selected-beneficiary" class="text-success mt-1 d-block" style="display: none;">
+                            <i class="bi bi-check-circle"></i> Selected: <strong></strong>
+                        </small>
+                    </div>
+                    <div class="card bg-light border-0 mb-3" style="border-radius: 12px;">
+                        <div class="card-body py-3">
+                            <div class="row text-center">
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Balance Before</small>
+                                    <strong id="balance-before-display" class="text-danger">{{ symbol }}0.00</strong>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Balance After</small>
+                                    <strong id="balance-after-display" class="text-success">{{ symbol }}0.00</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Payment Date</label>
+                        <input type="date" name="payment_date" class="form-control" value="{{ today|date:'Y-m-d' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Paid Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">{{ symbol }}</span>
+                            <input type="number" name="amount" id="paid-amount" class="form-control" step="0.01" min="0" value="0" oninput="updateBalance()">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Paid For</label>
+                        <select name="account" class="form-control" required>
+                            <option value="">-- Select Account --</option>
+                            {% for account in accounts %}
+                            <option value="{{ account.id }}">{{ account.code }} - {{ account.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Payment Method</label>
+                        <select name="payment_method" class="form-control">
+                            <option value="cash">Cash</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="mobile_money">Mobile Money</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Reference</label>
+                        <input type="text" name="reference" class="form-control" placeholder="Optional reference...">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-check-lg me-1"></i> Record Payment
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endwith %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+// Debounce function to reduce API calls
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// AJAX Autocomplete for Beneficiary Search
+let currentFocus = -1;
+
+const searchInput = document.getElementById('beneficiary-search');
+const dropdown = document.getElementById('beneficiary-dropdown');
+const noResultMsg = document.getElementById('no-beneficiary-msg');
+const selectedBeneficiaryDisplay = document.getElementById('selected-beneficiary');
+const hiddenBeneficiaryInput = document.getElementById('beneficiary-select');
+
+// Fetch beneficiaries from API
+const fetchBeneficiaries = debounce((query) => {
+    if (query.length < 2) {
+        dropdown.style.display = 'none';
+        noResultMsg.style.display = 'none';
+        return;
+    }
+
+    fetch(`/api/beneficiaries/search/?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+            dropdown.innerHTML = '';
+            currentFocus = -1;
+
+            if (data.results && data.results.length > 0) {
+                data.results.forEach((beneficiary, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'p-2 border-bottom';
+                    item.style.cursor = 'pointer';
+                    const outstanding = parseFloat(beneficiary.total_outstanding) || 0;
+                    item.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${beneficiary.name}</strong>
+                                <br>
+                                <small class="text-muted">
+                                    ${beneficiary.village ? beneficiary.village + ' | ' : ''}${beneficiary.scheme || ''}
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">${beneficiary.phone || 'No Phone'}</small>
+                                <br>
+                                <small class="text-danger fw-bold">{{ symbol }}${outstanding.toFixed(2)} due</small>
+                            </div>
+                        </div>
+                    `;
+                    item.addEventListener('click', () => selectBeneficiary(beneficiary));
+                    item.addEventListener('mouseenter', () => {
+                        clearActiveItems();
+                        item.classList.add('bg-light');
+                    });
+                    dropdown.appendChild(item);
+                });
+                dropdown.style.display = 'block';
+                noResultMsg.style.display = 'none';
+            } else {
+                dropdown.style.display = 'none';
+                noResultMsg.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching beneficiaries:', error);
+            dropdown.style.display = 'none';
+            noResultMsg.style.display = 'none';
+        });
+}, 300);
+
+// Search input event handlers
+searchInput.addEventListener('input', (e) => {
+    const query = e.target.value;
+    fetchBeneficiaries(query);
+});
+
+searchInput.addEventListener('keydown', (e) => {
+    const items = dropdown.querySelectorAll('.p-2');
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        currentFocus++;
+        if (currentFocus >= items.length) currentFocus = 0;
+        clearActiveItems();
+        if (items[currentFocus]) items[currentFocus].classList.add('bg-light');
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        currentFocus--;
+        if (currentFocus < 0) currentFocus = items.length - 1;
+        clearActiveItems();
+        if (items[currentFocus]) items[currentFocus].classList.add('bg-light');
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (currentFocus > -1 && items[currentFocus]) {
+            items[currentFocus].click();
+        }
+    } else if (e.key === 'Escape') {
+        dropdown.style.display = 'none';
+    }
+});
+
+// Clear active items in dropdown
+function clearActiveItems() {
+    const items = dropdown.querySelectorAll('.p-2');
+    items.forEach(item => item.classList.remove('bg-light'));
+}
+
+// Select beneficiary and load invoices
+function selectBeneficiary(beneficiary) {
+    searchInput.value = beneficiary.name;
+    hiddenBeneficiaryInput.value = beneficiary.id;
+    dropdown.style.display = 'none';
+    noResultMsg.style.display = 'none';
+
+    // Show selected beneficiary
+    selectedBeneficiaryDisplay.style.display = 'block';
+    selectedBeneficiaryDisplay.querySelector('strong').textContent = `${beneficiary.name} (${beneficiary.village || 'No Village'})`;
+
+    // Use the total_outstanding from the API response
+    var outstanding = parseFloat(beneficiary.total_outstanding) || 0;
+    document.getElementById('outstanding-display').textContent = '{{ symbol }}' + outstanding.toFixed(2);
+    document.getElementById('paid-amount').value = outstanding.toFixed(2);
+
+    // Load beneficiary invoices for detailed view
+    loadBeneficiaryInvoices(beneficiary.id);
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+    if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.style.display = 'none';
+    }
+});
+
+// Load beneficiary invoices (modified to work with hidden input)
+function loadBeneficiaryInvoices(beneficiaryId) {
+    var invoiceSelect = document.getElementById('invoice-select');
+    var invoiceDetails = document.getElementById('invoice-details');
+    var invoiceList = document.getElementById('invoice-list');
+
+    invoiceSelect.innerHTML = '<option value="">-- All Outstanding Invoices --</option>';
+    invoiceList.innerHTML = '';
+
+    if (!beneficiaryId) {
+        document.getElementById('total-invoiced-display').textContent = '{{ symbol }}0.00';
+        document.getElementById('total-paid-display').textContent = '{{ symbol }}0.00';
+        document.getElementById('outstanding-display').textContent = '{{ symbol }}0.00';
+        document.getElementById('paid-amount').value = 0;
+        invoiceDetails.style.display = 'none';
+        updateBalance();
+        return;
+    }
+
+    // Get outstanding amount from API
+    fetch(`/api/beneficiary/${beneficiaryId}/invoices/`)
+        .then(response => response.json())
+        .then(data => {
+            var totalInvoiced = 0;
+            var totalPaid = 0;
+            var totalOutstanding = 0;
+            var outstandingInvoices = [];
+
+            data.forEach(inv => {
+                var invTotal = inv.total_amount || 0;
+                var invPaid = inv.amount_paid || 0;
+                var invDue = inv.amount_due || 0;
+
+                totalInvoiced += invTotal;
+                totalPaid += invPaid;
+                totalOutstanding += invDue;
+
+                if (invDue > 0) {
+                    outstandingInvoices.push({
+                        id: inv.id,
+                        invoice_number: inv.invoice_number,
+                        amount_due: invDue,
+                        due_date: inv.due_date
+                    });
+                }
+            });
+
+            // Set the paid amount to the actual outstanding balance (what's still owed)
+            document.getElementById('paid-amount').value = totalOutstanding.toFixed(2);
+
+            document.getElementById('total-invoiced-display').textContent = '{{ symbol }}' + totalInvoiced.toFixed(2);
+            document.getElementById('total-paid-display').textContent = '{{ symbol }}' + totalPaid.toFixed(2);
+            document.getElementById('outstanding-display').textContent = '{{ symbol }}' + totalOutstanding.toFixed(2);
+
+            if (outstandingInvoices.length > 0) {
+                invoiceDetails.style.display = 'block';
+                outstandingInvoices.forEach(inv => {
+                    var div = document.createElement('div');
+                    div.className = 'd-flex justify-content-between align-items-center mb-1 p-1 border-bottom';
+                    div.style.fontSize = '0.85rem';
+                    div.innerHTML = '<span class="text-muted">' + inv.invoice_number + '</span>' +
+                        '<span class="badge bg-danger">{{ symbol }}' + inv.amount_due.toFixed(2) + '</span>' +
+                        '<small class="text-muted ms-2">' + inv.due_date + '</small>';
+                    div.style.cursor = 'pointer';
+                    div.onclick = function() {
+                        selectInvoice(inv.id, inv.amount_due);
+                    };
+                    invoiceList.appendChild(div);
+
+                    var option = document.createElement('option');
+                    option.value = inv.id;
+                    option.textContent = inv.invoice_number + ' - Due: {{ symbol }}' + inv.amount_due.toFixed(2);
+                    option.dataset.amount = inv.amount_due;
+                    invoiceSelect.appendChild(option);
+                });
+            } else {
+                invoiceDetails.style.display = 'none';
+            }
+
+            updateBalance();
+        })
+        .catch(error => {
+            console.error('Error loading invoices:', error);
+            updateBalance();
+        });
+}
+
+function selectInvoice(invoiceId, amount) {
+    document.getElementById('invoice-select').value = invoiceId;
+    document.getElementById('paid-amount').value = amount.toFixed(2);
+    updateBalance();
+}
+
+function applyInvoiceAmount() {
+    var invoiceSelect = document.getElementById('invoice-select');
+    var selectedOption = invoiceSelect.options[invoiceSelect.selectedIndex];
+
+    if (selectedOption && selectedOption.value) {
+        var amount = selectedOption.dataset.amount || '0';
+        document.getElementById('paid-amount').value = amount;
+    }
+    updateBalance();
+}
+
+function updateBalance() {
+    if (!hiddenBeneficiaryInput.value) {
+        document.getElementById('balance-before-display').textContent = '{{ symbol }}0.00';
+        document.getElementById('balance-after-display').textContent = '{{ symbol }}0.00';
+        return;
+    }
+
+    // Get outstanding amount from the display (this is the current balance before payment)
+    var outstandingText = document.getElementById('outstanding-display').textContent;
+    var outstanding = parseFloat(outstandingText.replace('{{ symbol }}', '')) || 0;
+    var paidAmount = parseFloat(document.getElementById('paid-amount').value || '0');
+    var balanceAfter = outstanding - paidAmount;
+
+    document.getElementById('balance-before-display').textContent = '{{ symbol }}' + outstanding.toFixed(2);
+    document.getElementById('balance-after-display').textContent = '{{ symbol }}' + balanceAfter.toFixed(2);
+}
+
+    // Get outstanding amount from the display
+    var outstandingText = document.getElementById('outstanding-display').textContent;
+    var outstanding = parseFloat(outstandingText.replace('{{ symbol }}', '')) || 0;
+    var paidAmount = parseFloat(document.getElementById('paid-amount').value || '0');
+    var balanceAfter = outstanding - paidAmount;
+
+    document.getElementById('balance-before-display').textContent = '{{ symbol }}' + outstanding.toFixed(2);
+    document.getElementById('balance-after-display').textContent = '{{ symbol }}' + balanceAfter.toFixed(2);
+}
+
+// Initialize
+{% if pre_selected_beneficiary_id %}
+document.addEventListener('DOMContentLoaded', function() {
+    hiddenBeneficiaryInput.value = "{{ pre_selected_beneficiary_id }}";
+    searchInput.value = "{{ pre_selected_beneficiary_name|default:'' }}";
+    loadBeneficiaryInvoices("{{ pre_selected_beneficiary_id }}");
+    {% if pre_selected_invoice_amount_due %}
+    document.getElementById('paid-amount').value = "{{ pre_selected_invoice_amount_due|floatformat:2 }}";
+    updateBalance();
+    {% endif %}
+});
+{% endif %}
+updateBalance();
+</script>
+{% endblock %}

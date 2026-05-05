@@ -1,0 +1,143 @@
+{% extends "accounting_app/base.html" %}
+{% load custom_filters %}
+{% block title %}Opening Balances{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4><i class="bi bi-arrow-right-circle"></i> Opening Balances (Balance Before)</h4>
+    <div>
+        <a href="{% url 'year_end_rollover' %}" class="btn btn-warning">
+            <i class="bi bi-calendar-check"></i> Year-End Rollover
+        </a>
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <form method="get" class="row g-3 align-items-center">
+            <div class="col-auto">
+                <label class="form-label mb-0">Fiscal Year:</label>
+            </div>
+            <div class="col-auto">
+                <select name="fiscal_year" class="form-select" onchange="this.form.submit()">
+                    {% for y in '2020,2021,2022,2023,2024,2025,2026,2027,2028,2029,2030'|make_list %}
+                    <option value="{{ y }}" {% if fiscal_year|stringformat:"s" == y %}selected{% endif %}>FY {{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+    <div class="card-body">
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h6>Opening Balance Total</h6>
+                        <h4>{{ user_profile.get_currency_symbol }}{{ total_opening|floatformat:2 }}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-danger text-white">
+                    <div class="card-body text-center">
+                        <h6>Outstanding This Year</h6>
+                        <h4>{{ user_profile.get_currency_symbol }}{{ total_outstanding|floatformat:2 }}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-warning text-dark">
+                    <div class="card-body text-center">
+                        <h6>Total Balance (Opening + Outstanding)</h6>
+                        <h4>{{ user_profile.get_currency_symbol }}{{ total_with_opening|floatformat:2 }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Beneficiary Name</th>
+                        <th>Opening Balance (B/F)</th>
+                        <th>Outstanding</th>
+                        <th>Total Balance</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in beneficiary_balances %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'beneficiary_detail' item.beneficiary.pk %}">{{ item.beneficiary.name }}</a>
+                            {% if item.beneficiary.scheme %}
+                                <br><small class="text-muted">{{ item.beneficiary.scheme }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="{% if item.opening_balance > 0 %}text-warning fw-bold{% endif %}">
+                            {{ user_profile.get_currency_symbol }}{{ item.opening_balance|floatformat:2 }}
+                        </td>
+                        <td class="{% if item.total_outstanding > 0 %}text-danger fw-bold{% endif %}">
+                            {{ user_profile.get_currency_symbol }}{{ item.total_outstanding|floatformat:2 }}
+                        </td>
+                        <td class="{% if item.total_with_opening > 0 %}text-danger fw-bold{% endif %}">
+                            <strong>{{ user_profile.get_currency_symbol }}{{ item.total_with_opening|floatformat:2 }}</strong>
+                        </td>
+                        <td>
+                            <a href="{% url 'opening_balance_edit' item.beneficiary.pk %}?fiscal_year={{ fiscal_year }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted">No beneficiaries found</td></tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-dark">
+                        <td><strong>TOTAL</strong></td>
+                        <td><strong>{{ user_profile.get_currency_symbol }}{{ total_opening|floatformat:2 }}</strong></td>
+                        <td><strong>{{ user_profile.get_currency_symbol }}{{ total_outstanding|floatformat:2 }}</strong></td>
+                        <td><strong>{{ user_profile.get_currency_symbol }}{{ total_with_opening|floatformat:2 }}</strong></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if rollover_history %}
+<div class="card">
+    <div class="card-header bg-secondary text-white">
+        <h6 class="mb-0"><i class="bi bi-clock-history"></i> Rollover History</h6>
+    </div>
+    <div class="card-body">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>From Year</th>
+                    <th>Rollover Date</th>
+                    <th>Clients</th>
+                    <th>Total Balance Carried Forward</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rollover in rollover_history %}
+                <tr>
+                    <td>FY {{ rollover.fiscal_year }}</td>
+                    <td>{{ rollover.rollover_date }}</td>
+                    <td>{{ rollover.total_clients }}</td>
+                    <td>{{ user_profile.get_currency_symbol }}{{ rollover.total_opening_balance|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

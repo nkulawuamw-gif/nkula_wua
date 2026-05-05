@@ -1,0 +1,443 @@
+{% extends 'accounting_app/base.html' %}
+
+{% block title %}Send Communication - Nkulawua{% endblock %}
+
+{% block extra_css %}
+<style>
+    .call-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    .call-box {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        padding: 50px;
+        color: white;
+        text-align: center;
+    }
+    .call-actions {
+        display: flex;
+        justify-content: center;
+        gap: 25px;
+        margin-top: 40px;
+    }
+    .call-btn {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        border: none;
+        font-size: 28px;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .call-btn:hover {
+        transform: scale(1.15);
+    }
+    .call-btn-answer {
+        background: #28a745;
+        color: white;
+    }
+    .call-btn-reject {
+        background: #dc3545;
+        color: white;
+    }
+    .call-btn-mute {
+        background: rgba(255,255,255,0.2);
+        color: white;
+    }
+    .call-btn-video {
+        background: rgba(255,255,255,0.2);
+        color: white;
+    }
+    .call-status {
+        font-size: 22px;
+        margin-bottom: 25px;
+    }
+    .caller-name {
+        font-size: 36px;
+        font-weight: bold;
+        margin-bottom: 15px;
+    }
+    video {
+        width: 100%;
+        max-width: 500px;
+        border-radius: 15px;
+        background: #000;
+        margin: 10px 0;
+    }
+    .video-container {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+    .video-container.active {
+        display: flex;
+    }
+    .video-container video {
+        width: 100%;
+        max-width: 450px;
+        border-radius: 15px;
+        background: #000;
+    }
+    #localVideo {
+        border: 3px solid #28a745;
+    }
+    .call-active .call-box {
+        background: #1a1a2e;
+    }
+    .call-panel-large {
+        width: 100%;
+        height: 100%;
+        min-height: 500px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="call-container">
+        <div class="row">
+            <div class="col-md-5">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="bi bi-telephone"></i> Make Communication</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" id="commForm">
+                            {% csrf_token %}
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Communication Type</label>
+                                <select name="communication_type" id="commType" class="form-select" required>
+                                    <option value="">Select Type</option>
+                                    <option value="sms">SMS</option>
+                                    <option value="voice_call">Voice Call</option>
+                                    <option value="video_call">Video Call</option>
+                                    <option value="whatsapp">WhatsApp</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Recipient (Client)</label>
+                                <select name="client" id="clientSelect" class="form-select">
+                                    <option value="">Select Client</option>
+                                    {% for client in clients %}
+                                    <option value="{{ client.id }}" data-phone="{{ client.phone }}" data-name="{{ client.name }}">
+                                        {{ client.name }} - {{ client.phone }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Phone Number</label>
+                                <input type="text" name="recipient" id="phoneNumber" class="form-control" placeholder="265999999999" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Message (for SMS/WhatsApp)</label>
+                                <textarea name="message" id="message" class="form-control" rows="4" placeholder="Enter your message..."></textarea>
+                            </div>
+                            
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary" id="sendBtn">
+                                    <i class="bi bi-send"></i> Send
+                                </button>
+                                <button type="button" class="btn btn-success" id="startCallBtn" onclick="startCall()">
+                                    <i class="bi bi-telephone"></i> Start Call
+                                </button>
+                                <button type="button" class="btn btn-danger" id="endCallBtn" onclick="endCall()" style="display: none;">
+                                    <i class="bi bi-phone-x"></i> End Call
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-7">
+                <div class="card call-panel-large">
+                    <div class="card-header">
+                        <h6><i class="bi bi-camera-video"></i> Call Panel</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="call-box h-100 rounded-0" id="callBox">
+                            <div class="caller-name" id="callerName">Unknown</div>
+                            <div class="call-status" id="callStatus">Ready to call</div>
+                            
+                            <div class="video-container mb-3 px-3">
+                                <video id="localVideo" autoplay muted></video>
+                                <video id="remoteVideo" autoplay></video>
+                            </div>
+                            
+                            <div class="call-actions">
+                                <button class="call-btn call-btn-answer" id="answerBtn" style="display: none;">
+                                    <i class="bi bi-phone"></i>
+                                </button>
+                                <button class="call-btn call-btn-reject" id="rejectBtn" style="display: none;">
+                                    <i class="bi bi-phone-x"></i>
+                                </button>
+                                <button class="call-btn call-btn-mute" id="muteBtn" onclick="toggleMute()" style="display: none;">
+                                    <i class="bi bi-mic"></i>
+                                </button>
+                                <button class="call-btn call-btn-video" id="videoBtn" onclick="toggleVideo()" style="display: none;">
+                                    <i class="bi bi-camera-video"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <small id="callDuration" style="display: none;">00:00</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// WebRTC Configuration
+const configuration = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+};
+
+let localStream = null;
+let remoteStream = null;
+let peerConnection = null;
+let isAudioOnly = false;
+let isMuted = false;
+let callDuration = 0;
+let callTimer = null;
+
+// Handle client selection
+document.getElementById('clientSelect').addEventListener('change', function() {
+    const option = this.options[this.selectedIndex];
+    if (option.dataset.phone) {
+        document.getElementById('phoneNumber').value = option.dataset.phone;
+        document.getElementById('callerName').textContent = option.dataset.name;
+    }
+});
+
+// Handle communication type change
+document.getElementById('commType').addEventListener('change', function() {
+    const type = this.value;
+    const startBtn = document.getElementById('startCallBtn');
+    
+    if (type === 'voice_call' || type === 'video_call') {
+        startBtn.style.display = 'inline-block';
+        startBtn.innerHTML = type === 'voice_call' ? 
+            '<i class="bi bi-telephone"></i> Start Voice Call' : 
+            '<i class="bi bi-camera-video"></i> Start Video Call';
+    } else {
+        startBtn.style.display = 'none';
+    }
+});
+
+// Start Call
+async function startCall() {
+    const phoneNumber = document.getElementById('phoneNumber').value;
+    const commType = document.getElementById('commType').value;
+    
+    if (!phoneNumber) {
+        alert('Please enter a phone number');
+        return;
+    }
+    
+    isAudioOnly = commType === 'voice_call';
+    
+    try {
+        // Get media stream
+        const constraints = {
+            audio: true,
+            video: !isAudioOnly
+        };
+        
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        // Show local video
+        document.getElementById('localVideo').srcObject = localStream;
+        if (isAudioOnly) {
+            document.getElementById('localVideo').style.display = 'none';
+            document.querySelector('.video-container').classList.remove('active');
+        } else {
+            document.getElementById('localVideo').style.display = 'block';
+            document.querySelector('.video-container').classList.add('active');
+        }
+        
+        // Show end call button
+        document.getElementById('endCallBtn').style.display = 'inline-block';
+        document.getElementById('startCallBtn').style.display = 'none';
+        document.getElementById('sendBtn').disabled = true;
+        document.getElementById('callStatus').textContent = 'Connecting...';
+        document.getElementById('muteBtn').style.display = 'block';
+        document.getElementById('videoBtn').style.display = 'block';
+        document.querySelector('.call-box').classList.add('call-active');
+        
+        // Create peer connection
+        peerConnection = new RTCPeerConnection(configuration);
+        
+        // Add local tracks
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
+        
+        // Handle remote stream
+        peerConnection.ontrack = (event) => {
+            document.getElementById('remoteVideo').srcObject = event.streams[0];
+            remoteStream = event.streams[0];
+        };
+        
+        // Handle ICE candidates
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                console.log('ICE candidate:', event.candidate);
+            }
+        };
+        
+        // Create offer
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        
+        // Simulate connection (in real app, this would go through a signaling server)
+        document.getElementById('callStatus').textContent = 'Connected';
+        startCallTimer();
+        
+        // Log the call
+        logCall(phoneNumber, commType, 'outgoing');
+        
+    } catch (error) {
+        console.error('Error starting call:', error);
+        alert('Failed to access camera/microphone. Please check permissions.');
+        document.getElementById('callStatus').textContent = 'Call failed';
+    }
+}
+
+// Toggle Mute
+function toggleMute() {
+    if (localStream) {
+        const audioTrack = localStream.getAudioTracks()[0];
+        if (audioTrack) {
+            audioTrack.enabled = !audioTrack.enabled;
+            isMuted = !audioTrack.enabled;
+            
+            const muteBtn = document.getElementById('muteBtn');
+            muteBtn.innerHTML = isMuted ? '<i class="bi bi-mic-mute"></i>' : '<i class="bi bi-mic"></i>';
+            muteBtn.style.background = isMuted ? '#dc3545' : 'rgba(255,255,255,0.2)';
+        }
+    }
+}
+
+// Toggle Video
+function toggleVideo() {
+    if (localStream) {
+        const videoTrack = localStream.getVideoTracks()[0];
+        if (videoTrack) {
+            videoTrack.enabled = !videoTrack.enabled;
+            
+            const videoBtn = document.getElementById('videoBtn');
+            videoBtn.innerHTML = videoTrack.enabled ? 
+                '<i class="bi bi-camera-video"></i>' : 
+                '<i class="bi bi-camera-video-off"></i>';
+            videoBtn.style.background = !videoTrack.enabled ? '#dc3545' : 'rgba(255,255,255,0.2)';
+            
+            document.getElementById('localVideo').style.display = videoTrack.enabled ? 'block' : 'none';
+            if (videoTrack.enabled) {
+                document.querySelector('.video-container').classList.add('active');
+            }
+        }
+    }
+}
+
+// Start Call Timer
+function startCallTimer() {
+    callTimer = setInterval(() => {
+        callDuration++;
+        const minutes = Math.floor(callDuration / 60).toString().padStart(2, '0');
+        const seconds = (callDuration % 60).toString().padStart(2, '0');
+        document.getElementById('callDuration').textContent = `${minutes}:${seconds}`;
+        document.getElementById('callDuration').style.display = 'block';
+    }, 1000);
+}
+
+// End Call
+function endCall() {
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+    
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    
+    if (callTimer) {
+        clearInterval(callTimer);
+        callTimer = null;
+    }
+    
+    // Reset UI
+    document.getElementById('callStatus').textContent = 'Call ended';
+    document.getElementById('localVideo').srcObject = null;
+    document.getElementById('remoteVideo').srcObject = null;
+    document.querySelector('.video-container').classList.remove('active');
+    document.getElementById('localVideo').style.display = 'none';
+    document.getElementById('remoteVideo').style.display = 'none';
+    document.getElementById('muteBtn').style.display = 'none';
+    document.getElementById('videoBtn').style.display = 'none';
+    document.querySelector('.call-box').classList.remove('call-active');
+    document.getElementById('callDuration').style.display = 'none';
+    
+    // Reset buttons
+    document.getElementById('endCallBtn').style.display = 'none';
+    document.getElementById('startCallBtn').style.display = 'inline-block';
+    document.getElementById('sendBtn').disabled = false;
+    
+    setTimeout(() => {
+        document.getElementById('callStatus').textContent = 'Ready to call';
+    }, 2000);
+}
+
+// Log Call
+function logCall(phoneNumber, type, direction) {
+    // This would send data to your backend
+    console.log('Logging call:', { phoneNumber, type, direction, duration: callDuration });
+}
+
+// Handle form submission
+document.getElementById('commForm').addEventListener('submit', function(e) {
+    const commType = document.getElementById('commType').value;
+    
+    if (commType === 'voice_call' || commType === 'video_call') {
+        e.preventDefault();
+        alert('Please use the "Start Call" button for voice/video calls');
+    }
+});
+
+// Pre-select communication type from URL
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const type = urlParams.get('type');
+    if (type) {
+        document.getElementById('commType').value = type;
+        // Trigger change event to show/hide call button
+        document.getElementById('commType').dispatchEvent(new Event('change'));
+    }
+});
+
+// Keyboard shortcut to end call
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && peerConnection) {
+        endCall();
+    }
+});
+</script>
+{% endblock %}

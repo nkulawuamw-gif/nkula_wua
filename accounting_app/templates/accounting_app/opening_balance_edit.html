@@ -1,0 +1,72 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Edit Opening Balance - {{ beneficiary.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4><i class="bi bi-arrow-right-circle"></i> Edit Opening Balance</h4>
+    <a href="{% url 'opening_balance_list' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Back
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0">{{ beneficiary.name }}</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Type:</strong> {{ beneficiary.get_beneficiary_type_display }}</p>
+                <p><strong>Scheme:</strong> {{ beneficiary.scheme|default:"-" }}</p>
+                <p><strong>Village:</strong> {{ beneficiary.village|default:"-" }}</p>
+                <hr>
+                <p><strong>Current Outstanding:</strong> <span class="text-danger fw-bold">{{ currency_symbol }}{{ beneficiary.total_outstanding|floatformat:2 }}</span></p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h6 class="mb-0">Opening Balance for Fiscal Year {{ fiscal_year }}</h6>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Balance Before (B/F):</strong> Set the opening balance for FY {{ fiscal_year }}.
+                        This represents the amount the beneficiary owed at the start of the fiscal year (carried forward from previous year).
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Opening Balance Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">{{ currency_symbol }}</span>
+                            <input type="number" name="amount" step="0.01" min="0" 
+                                   class="form-control form-control-lg" 
+                                   value="{{ opening_balance.amount|default:'0.00' }}" required>
+                        </div>
+                        <small class="text-muted">Enter the balance brought forward from the previous fiscal year</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" class="form-control" rows="3" placeholder="Optional notes about this opening balance...">{{ opening_balance.notes|default:'' }}</textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-save"></i> Save Opening Balance
+                        </button>
+                        <a href="{% url 'opening_balance_list' %}" class="btn btn-secondary">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

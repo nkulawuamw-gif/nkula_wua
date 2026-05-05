@@ -1,0 +1,174 @@
+{% extends 'accounting_app/base.html' %}
+
+{% block title %}WhatsApp Web Setup - Nkulawua{% endblock %}
+
+{% block extra_css %}
+<style>
+    .whatsapp-setup {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    .qr-container {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        border: 2px dashed #25D366;
+    }
+    .qr-container img {
+        max-width: 250px;
+    }
+    .whatsapp-status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .status-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+    }
+    .status-pending { background: #ffc107; }
+    .status-verified { background: #28a745; }
+    .status-expired { background: #dc3545; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="whatsapp-setup">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-whatsapp"></i> WhatsApp Web Setup</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> 
+                    <strong>Connect WhatsApp Web</strong> to send messages directly from your browser. 
+                    Enter your phone number and scan the QR code to link your WhatsApp.
+                </div>
+                
+                {% if user_profile.whatsapp_status == 'verified' %}
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle"></i> WhatsApp is connected and ready to use.
+                    <div class="whatsapp-status mt-2">
+                        <span class="status-dot status-verified"></span>
+                        <span>Connected: {{ user_profile.whatsapp_number }}</span>
+                    </div>
+                </div>
+                {% elif user_profile.whatsapp_status == 'pending' %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> WhatsApp connection pending.
+                    <div class="whatsapp-status mt-2">
+                        <span class="status-dot status-pending"></span>
+                        <span>Number saved: {{ user_profile.whatsapp_number }}</span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="alert alert-secondary">
+                    <i class="bi bi-question-circle"></i> WhatsApp not configured yet.
+                </div>
+                {% endif %}
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Your WhatsApp Number</label>
+                        <div class="input-group">
+                            <span class="input-group-text">+</span>
+                            <input type="text" name="whatsapp_number" class="form-control" 
+                                   placeholder="265991234567" 
+                                   value="{{ user_profile.whatsapp_number }}" 
+                                   pattern="[0-9]{9,15}" required>
+                        </div>
+                        <small class="text-muted">Enter phone number with country code (no + sign)</small>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        {% if user_profile.whatsapp_status != 'verified' %}
+                        <button type="submit" name="action" value="generate_qr" class="btn btn-success">
+                            <i class="bi bi-qr-code"></i> Generate QR Code & Connect
+                        </button>
+                        {% else %}
+                        <button type="submit" name="action" value="logout" class="btn btn-danger">
+                            <i class="bi bi-x-circle"></i> Disconnect WhatsApp
+                        </button>
+                        {% endif %}
+                    </div>
+                </form>
+                
+                <hr>
+                
+                <div class="qr-container mt-4" id="qrContainer" style="display: none;">
+                    <h6><i class="bi bi-scan"></i> Scan QR Code</h6>
+                    <div id="qrCode">
+                        <img src="data:image/png;base64,{{ qr_image }}" alt="QR Code" id="qrImage">
+                    </div>
+                    <p class="text-muted mt-2">Scan this code with WhatsApp on your phone</p>
+                    <div class="d-flex justify-content-center gap-2 mt-3">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="refreshQR()">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="window.open('https://web.whatsapp.com', '_blank')">
+                            <i class="bi bi-box-arrow-up-right"></i> Open WhatsApp Web
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <h6>Instructions:</h6>
+                    <ol class="text-muted">
+                        <li>Enter your WhatsApp number with country code (e.g., 265991234567)</li>
+                        <li>Click "Generate QR Code" to get the connection QR</li>
+                        <li>Open WhatsApp on your phone</li>
+                        <li>Tap Menu or Settings and select WhatsApp Web</li>
+                        <li>Scan the QR code displayed here</li>
+                        <li>Once connected, you can send WhatsApp messages directly!</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6>Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <a href="{% url 'communication_create' %}?type=whatsapp" class="btn btn-success w-100">
+                            <i class="bi bi-send"></i> Send Message
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="{% url 'whatsapp_messages' %}" class="btn btn-outline-success w-100">
+                            <i class="bi bi-chat-dots"></i> View Messages
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="{% url 'settings' %}" class="btn btn-outline-secondary w-100">
+                            <i class="bi bi-gear"></i> Settings
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Show QR container if status is pending
+document.addEventListener('DOMContentLoaded', function() {
+    const status = "{{ user_profile.whatsapp_status }}";
+    if (status === 'pending') {
+        document.getElementById('qrContainer').style.display = 'block';
+    }
+});
+
+function refreshQR() {
+    // Refresh page to generate new QR code
+    location.reload();
+}
+</script>
+{% endblock %}

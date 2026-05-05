@@ -1,0 +1,137 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Rollover Preview - FY {{ from_year }} to FY {{ to_year }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4><i class="bi bi-calendar-check"></i> Rollover Preview: FY {{ from_year }} → FY {{ to_year }}</h4>
+    <a href="{% url 'year_end_rollover' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Back
+    </a>
+</div>
+
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    <strong>Review:</strong> This preview shows all clients and their outstanding balances that will be carried forward as opening balances to FY {{ to_year }}.
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h6>Total Clients</h6>
+                <h3>{{ client_count }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-warning text-dark">
+            <div class="card-body text-center">
+                <h6>Total Balance to Carry Forward</h6>
+                <h3>{{ currency_symbol }}{{ total_balance|floatformat:2 }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h6>From Year</h6>
+                <h3>FY {{ from_year }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-warning">
+        <h6 class="mb-0">Clients and Their Balances</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Client Name</th>
+                        <th>Outstanding Balance (FY {{ from_year }})</th>
+                        <th>Opening Balance to Set (FY {{ to_year }})</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in rollover_data %}
+                    <tr>
+                        <td>
+                            {{ item.beneficiary.name }}
+                            {% if item.beneficiary.scheme %}
+                                <br><small class="text-muted">{{ item.beneficiary.scheme }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="{% if item.outstanding > 0 %}text-danger fw-bold{% endif %}">
+                            {{ currency_symbol }}{{ item.outstanding|floatformat:2 }}
+                        </td>
+                        <td class="{% if item.will_be_set > 0 %}text-warning fw-bold{% endif %}">
+                            <strong>{{ currency_symbol }}{{ item.will_be_set|floatformat:2 }}</strong>
+                            {% if item.existing_opening > 0 %}
+                                <br><small class="text-info">(was: {{ currency_symbol }}{{ item.existing_opening|floatformat:2 }})</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.beneficiary.is_active %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-dark">
+                        <td><strong>TOTAL</strong></td>
+                        <td><strong>{{ currency_symbol }}{{ total_balance|floatformat:2 }}</strong></td>
+                        <td><strong>{{ currency_symbol }}{{ total_balance|floatformat:2 }}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header bg-success text-white">
+        <h6 class="mb-0"><i class="bi bi-check-circle"></i> Confirm Rollover</h6>
+    </div>
+    <div class="card-body">
+        <form method="post" action="{% url 'year_end_rollover' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="execute">
+            <input type="hidden" name="from_year" value="{{ from_year }}">
+            <input type="hidden" name="to_year" value="{{ to_year }}">
+            
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle"></i>
+                <strong>Warning:</strong> This action will create opening balances for all {{ client_count }} clients totaling {{ currency_symbol }}{{ total_balance|floatformat:2 }}.
+                This cannot be undone easily. Make sure you have reviewed the preview above.
+            </div>
+            
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="confirmCheck" required>
+                <label class="form-check-label" for="confirmCheck">
+                    I understand that this will carry forward all outstanding balances to FY {{ to_year }}
+                </label>
+            </div>
+            
+            <div class="d-grid">
+                <button type="submit" class="btn btn-success btn-lg" id="executeBtn" disabled>
+                    <i class="bi bi-check-all"></i> Execute Year-End Rollover
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById('confirmCheck').addEventListener('change', function() {
+    document.getElementById('executeBtn').disabled = !this.checked;
+});
+</script>
+{% endblock %}

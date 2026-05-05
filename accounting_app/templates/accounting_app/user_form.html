@@ -1,0 +1,57 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}{{ action }} User{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>{{ action }} User</h4>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {% for field in form %}
+                        <div class="mb-3">
+                            <label class="form-label">{{ field.label }}</label>
+                            {{ field }}
+                        </div>
+                    {% endfor %}
+                    <div class="mb-3">
+                        <label class="form-label">Role</label>
+                        <select name="role" class="form-select" required>
+                            <option value="viewer">Viewer - Can view only</option>
+                            <option value="accountant">Accountant - Can view and edit</option>
+                            <option value="manager">Manager - Can view, edit, and delete</option>
+                            <option value="admin">Administrator - Full access</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">{{ action }} User</button>
+                    <a href="{% url 'user_list' %}" class="btn btn-secondary">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Role Permissions</h6>
+            </div>
+            <div class="card-body">
+                <h6><span class="badge bg-danger">Administrator</span></h6>
+                <p class="small">Full access to all features including settings and user management.</p>
+                
+                <h6 class="mt-3"><span class="badge bg-warning">Manager</span></h6>
+                <p class="small">Can view, edit, and delete records. Cannot access settings.</p>
+                
+                <h6 class="mt-3"><span class="badge bg-primary">Accountant</span></h6>
+                <p class="small">Can view and edit records. Cannot delete or access settings.</p>
+                
+                <h6 class="mt-3"><span class="badge bg-secondary">Viewer</span></h6>
+                <p class="small">Read-only access. Can view all data but cannot edit.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

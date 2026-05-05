@@ -1,0 +1,87 @@
+{% extends 'accounting_app/base.html' %}
+
+{% block title %}WhatsApp Messages - Nkulawua{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4><i class="bi bi-whatsapp text-success"></i> WhatsApp Messages</h4>
+        <a href="{% url 'communication_create' %}?type=whatsapp" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> New WhatsApp Message
+        </a>
+    </div>
+
+    <div class="row">
+        {% for log in whatsapp_logs %}
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-whatsapp"></i> {{ log.recipient }}</span>
+                    <small>{{ log.sent_at|timesince }} ago</small>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">{{ log.message }}</p>
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="bi bi-person"></i> {{ log.sent_by.username }}
+                        </small>
+                        <span class="badge {% if log.status == 'delivered' %}bg-success{% elif log.status == 'failed' %}bg-danger{% else %}bg-secondary{% endif %}">
+                            {{ log.status|title }}
+                        </span>
+                    </div>
+                </div>
+                {% if log.recipient_client %}
+                <div class="card-footer text-muted">
+                    <small>
+                        <i class="bi bi-person-circle"></i> 
+                        <a href="{% url 'beneficiary_detail' log.recipient_client.id %}">{{ log.recipient_client.name }}</a>
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-whatsapp" style="font-size: 60px; color: #25D366;"></i>
+                    <h5 class="mt-3">No WhatsApp Messages Yet</h5>
+                    <p class="text-muted">Send your first WhatsApp message to clients</p>
+                    <a href="{% url 'communication_create' %}?type=whatsapp" class="btn btn-success mt-2">
+                        <i class="bi bi-plus-circle"></i> Send WhatsApp Message
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    {% if whatsapp_logs %}
+    <div class="card mt-4">
+        <div class="card-header">
+            <h6>Quick Actions</h6>
+        </div>
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col-md-4">
+                    <a href="{% url 'communication_create' %}?type=whatsapp" class="btn btn-success w-100">
+                        <i class="bi bi-plus-circle"></i> New Message
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a href="{% url 'communication_list' %}?type=whatsapp" class="btn btn-outline-success w-100">
+                        <i class="bi bi-list"></i> View All Messages
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a href="{% url 'communication_list' %}" class="btn btn-outline-secondary w-100">
+                        <i class="bi bi-arrow-left"></i> Back to Communications
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

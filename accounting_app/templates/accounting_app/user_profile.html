@@ -1,0 +1,106 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>My Profile</h4>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="bi bi-person-circle" style="font-size: 80px; color: #6c757d;"></i>
+                </div>
+                <h5>{{ user.username }}</h5>
+                <p class="text-muted">{{ user.email }}</p>
+                <span class="badge bg-{% if user.userprofile.role == 'admin' %}danger{% elif user.userprofile.role == 'manager' %}warning{% elif user.userprofile.role == 'accountant' %}primary{% else %}secondary{% endif %}">
+                    {{ user.userprofile.get_role_display }}
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Account Information</h6>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tr>
+                        <th>Username:</th>
+                        <td>{{ user.username }}</td>
+                    </tr>
+                    <tr>
+                        <th>Email:</th>
+                        <td>{{ user.email|default:"Not set" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Role:</th>
+                        <td>{{ user.userprofile.get_role_display }}</td>
+                    </tr>
+                    <tr>
+                        <th>Member Since:</th>
+                        <td>{{ user.date_joined }}</td>
+                    </tr>
+                    <tr>
+                        <th>Last Login:</th>
+                        <td>{{ user.last_login|default:"Never" }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">My Permissions</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-group">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        View Dashboard
+                        <span class="badge bg-success"><i class="bi bi-check"></i></span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        View Records
+                        <span class="badge bg-success"><i class="bi bi-check"></i></span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Edit Records
+                        {% if user.userprofile.can_edit %}
+                            <span class="badge bg-success"><i class="bi bi-check"></i></span>
+                        {% else %}
+                            <span class="badge bg-danger"><i class="bi bi-x"></i></span>
+                        {% endif %}
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Delete Records
+                        {% if user.userprofile.can_delete %}
+                            <span class="badge bg-success"><i class="bi bi-check"></i></span>
+                        {% else %}
+                            <span class="badge bg-danger"><i class="bi bi-x"></i></span>
+                        {% endif %}
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Access Settings
+                        {% if user.userprofile.can_access_settings %}
+                            <span class="badge bg-success"><i class="bi bi-check"></i></span>
+                        {% else %}
+                            <span class="badge bg-danger"><i class="bi bi-x"></i></span>
+                        {% endif %}
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Manage Users
+                        {% if user.userprofile.can_manage_users %}
+                            <span class="badge bg-success"><i class="bi bi-check"></i></span>
+                        {% else %}
+                            <span class="badge bg-danger"><i class="bi bi-x"></i></span>
+                        {% endif %}
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

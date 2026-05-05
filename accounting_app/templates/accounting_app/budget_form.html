@@ -1,0 +1,174 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}{{ action }} Budget{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>{{ action }} Budget</h4>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            {{ formset.management_form }}
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+            {% if formset.non_form_errors %}
+            <div class="alert alert-danger">{{ formset.non_form_errors }}</div>
+            {% endif %}
+
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <label class="form-label">From Date</label>
+                    {{ form.start_date }}
+                    {% if form.start_date.errors %}<div class="text-danger small">{{ form.start_date.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">To Date</label>
+                    {{ form.end_date }}
+                    {% if form.end_date.errors %}<div class="text-danger small">{{ form.end_date.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Notes</label>
+                    {{ form.notes }}
+                </div>
+            </div>
+
+            <h5 class="mt-4 mb-3">Budget Lines</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered" id="lines-table">
+                    <thead>
+                        <tr>
+                            <th>Account</th>
+                            <th>Description</th>
+                            <th style="width: 100px;">Quantity</th>
+                            <th style="width: 130px;">Price/Unit</th>
+                            <th style="width: 130px;">Total</th>
+                            <th style="width: 50px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="lines-tbody">
+                        {% for line_form in formset %}
+                        <tr class="line-row">
+                            <td>
+                                {{ line_form.account }}
+                                {% if line_form.account.errors %}<div class="text-danger small">{{ line_form.account.errors }}</div>{% endif %}
+                            </td>
+                            <td>
+                                {{ line_form.description }}
+                                {% if line_form.description.errors %}<div class="text-danger small">{{ line_form.description.errors }}</div>{% endif %}
+                            </td>
+                            <td>
+                                {{ line_form.quantity }}
+                                {% if line_form.quantity.errors %}<div class="text-danger small">{{ line_form.quantity.errors }}</div>{% endif %}
+                            </td>
+                            <td>
+                                {{ line_form.unit_price }}
+                                {% if line_form.unit_price.errors %}<div class="text-danger small">{{ line_form.unit_price.errors }}</div>{% endif %}
+                            </td>
+                            <td><span class="line-total fw-bold">0.00</span></td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-outline-danger remove-btn">&times;</button>
+                                {{ line_form.id }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="fw-bold">
+                            <td colspan="4" class="text-end">Grand Total:</td>
+                            <td id="grand-total">0.00</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <button type="button" class="btn btn-sm btn-secondary" id="add-line-btn">+ Add Line</button>
+
+            <hr class="mt-4">
+            <button type="submit" class="btn btn-primary">{{ action }}</button>
+            <a href="{% url 'budget_list' %}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var tbody = document.getElementById('lines-tbody');
+    var addBtn = document.getElementById('add-line-btn');
+    var totalInput = document.getElementById('id_lines-TOTAL_FORMS');
+    var nextIndex = parseInt(totalInput.value);
+
+    function calcRowTotal(row) {
+        var qty = 0, price = 0;
+        var inputs = row.querySelectorAll('input');
+        for (var i = 0; i < inputs.length; i++) {
+            var inp = inputs[i];
+            if (inp.name && inp.name.indexOf('quantity') !== -1) qty = parseFloat(inp.value) || 0;
+            if (inp.name && inp.name.indexOf('unit_price') !== -1) price = parseFloat(inp.value) || 0;
+        }
+        return qty * price;
+    }
+
+    function updateTotals() {
+        var grandTotal = 0;
+        var rows = tbody.querySelectorAll('.line-row');
+        for (var i = 0; i < rows.length; i++) {
+            var t = calcRowTotal(rows[i]);
+            var span = rows[i].querySelector('.line-total');
+            if (span) span.textContent = t.toFixed(2);
+            grandTotal += t;
+        }
+        var gt = document.getElementById('grand-total');
+        if (gt) gt.textContent = grandTotal.toFixed(2);
+    }
+
+    addBtn.addEventListener('click', function() {
+        var firstRow = tbody.querySelector('.line-row');
+        if (!firstRow) return;
+
+        var newRow = firstRow.cloneNode(true);
+        var inputs = newRow.querySelectorAll('input, select, textarea');
+        for (var i = 0; i < inputs.length; i++) {
+            var inp = inputs[i];
+            if (inp.name) {
+                inp.name = inp.name.replace(/-\d+-/, '-' + nextIndex + '-');
+            }
+            if (inp.type === 'hidden') inp.value = '';
+            if (inp.type === 'checkbox') inp.checked = false;
+            if (inp.type === 'text' || inp.type === 'number') inp.value = '';
+            inp.id = '';
+        }
+
+        // Clear error messages in cloned row
+        var errs = newRow.querySelectorAll('.text-danger');
+        for (var j = 0; j < errs.length; j++) errs[j].remove();
+
+        tbody.appendChild(newRow);
+        nextIndex++;
+        totalInput.value = nextIndex;
+        updateTotals();
+    });
+
+    tbody.addEventListener('input', function(e) {
+        var target = e.target;
+        if (target.name && (target.name.indexOf('quantity') !== -1 || target.name.indexOf('unit_price') !== -1)) {
+            updateTotals();
+        }
+    });
+
+    tbody.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-btn')) {
+            var row = e.target.closest('tr');
+            row.remove();
+            updateTotals();
+        }
+    });
+
+    updateTotals();
+});
+</script>
+{% endblock %}

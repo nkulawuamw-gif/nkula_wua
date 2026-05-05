@@ -1,0 +1,142 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Year-End Rollover{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4><i class="bi bi-calendar-check"></i> Year-End Rollover</h4>
+    <a href="{% url 'opening_balance_list' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Back
+    </a>
+</div>
+
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i>
+    <strong>Important:</strong> This process will carry forward all client outstanding balances to the next fiscal year as opening balances.
+    This should be done at the end of each financial year.
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h6 class="mb-0"><i class="bi bi-play-circle"></i> Start New Rollover</h6>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'year_end_rollover' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="preview">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">From Year (Current Year)</label>
+                        <select name="from_year" class="form-select" required>
+                            {% with current_year as cy %}
+                            <option value="{{ cy }}">FY {{ cy }}</option>
+                            {% endwith %}
+                        </select>
+                        <small class="text-muted">This is the year that is ending</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">To Year (Next Year)</label>
+                        <select name="to_year" class="form-select" required>
+                            <option value="{{ next_year }}">FY {{ next_year }}</option>
+                        </select>
+                        <small class="text-muted">Outstanding balances will be carried to this year</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">New Fiscal Year Start Date</label>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <select name="start_day" class="form-select" required>
+                                    <option value="">Day</option>
+                                    {% for d in "12345678910111213141516171819202122232425262728293031"|make_list %}
+                                        <option value="{{ d }}">{{ d }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <select name="start_month" class="form-select" required>
+                                    <option value="">Month</option>
+                                    <option value="1">January</option>
+                                    <option value="2">February</option>
+                                    <option value="3">March</option>
+                                    <option value="4">April</option>
+                                    <option value="5">May</option>
+                                    <option value="6">June</option>
+                                    <option value="7">July</option>
+                                    <option value="8">August</option>
+                                    <option value="9">September</option>
+                                    <option value="10">October</option>
+                                    <option value="11">November</option>
+                                    <option value="12">December</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <select name="start_year" class="form-select" required>
+                                    <option value="{{ next_year }}">{{ next_year }}</option>
+                                </select>
+                            </div>
+                        </div>
+                        <small class="text-muted">Set the start date for the new fiscal year</small>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-eye"></i> Preview Rollover
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0"><i class="bi bi-info-circle"></i> How Year-End Rollover Works</h6>
+            </div>
+            <div class="card-body">
+                <ol>
+                    <li class="mb-2"><strong>Preview:</strong> See all clients and their outstanding balances that will be carried forward.</li>
+                    <li class="mb-2"><strong>Confirm:</strong> After reviewing, execute the rollover to create opening balances.</li>
+                    <li class="mb-2"><strong>Result:</strong> Each client's outstanding balance becomes their "Opening Balance" (Balance Before) for the new fiscal year.</li>
+                </ol>
+                
+                <hr>
+                
+                <h6>What happens:</h6>
+                <ul>
+                    <li>Beneficiary's <strong>Outstanding Balance</strong> → Becomes <strong>Opening Balance (B/F)</strong></li>
+                    <li>Opening balances are recorded for each active client</li>
+                    <li>A rollover record is created for audit trail</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if last_rollover %}
+<div class="card mt-4">
+    <div class="card-header bg-secondary text-white">
+        <h6 class="mb-0"><i class="bi bi-clock-history"></i> Last Rollover Performed</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <p><strong>Fiscal Year:</strong> FY {{ last_rollover.fiscal_year }}</p>
+            </div>
+            <div class="col-md-3">
+                <p><strong>Date:</strong> {{ last_rollover.rollover_date }}</p>
+            </div>
+            <div class="col-md-3">
+                <p><strong>Clients:</strong> {{ last_rollover.total_clients }}</p>
+            </div>
+            <div class="col-md-3">
+                <p><strong>Total Balance:</strong> {{ user.userprofile.get_currency_symbol }}{{ last_rollover.total_opening_balance|floatformat:2 }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

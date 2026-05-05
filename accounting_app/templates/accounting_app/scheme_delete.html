@@ -1,0 +1,44 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Delete Scheme{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="page-title page-title-{{ user.userprofile.title_animation|default:'gradient' }}"><i class="bi bi-trash"></i> Delete Scheme</h2>
+        <a href="{% url 'manage_schemes' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+    </div>
+
+    <div class="alert alert-danger">
+        <h4 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Warning!</h4>
+        <p>You are about to delete the scheme "<strong>{{ scheme.name }}</strong>".</p>
+        <p>This will also delete all villages associated with this scheme and all their population records.</p>
+        <hr>
+        <p class="mb-0">This action cannot be undone.</p>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <h5>Scheme Details:</h5>
+            <ul>
+                <li><strong>Name:</strong> {{ scheme.name }}</li>
+                <li><strong>Description:</strong> {{ scheme.description|default:"-" }}</li>
+                <li><strong>Villages:</strong> {{ scheme.villages.count }}</li>
+            </ul>
+
+            <form method="POST">
+                {% csrf_token %}
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <a href="{% url 'manage_schemes' %}" class="btn btn-secondary me-md-2">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Delete Scheme
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

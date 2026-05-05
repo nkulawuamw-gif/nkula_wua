@@ -1,0 +1,44 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Delete Village{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="page-title page-title-{{ user.userprofile.title_animation|default:'gradient' }}"><i class="bi bi-trash"></i> Delete Village</h2>
+        <a href="{% url 'manage_villages' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+    </div>
+
+    <div class="alert alert-danger">
+        <h4 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Warning!</h4>
+        <p>You are about to delete the village "<strong>{{ village.name }}</strong>" from scheme "<strong>{{ village.scheme.name }}</strong>".</p>
+        <p>This will also delete all population records for this village.</p>
+        <hr>
+        <p class="mb-0">This action cannot be undone.</p>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <h5>Village Details:</h5>
+            <ul>
+                <li><strong>Name:</strong> {{ village.name }}</li>
+                <li><strong>Scheme:</strong> {{ village.scheme.name }}</li>
+                <li><strong>Description:</strong> {{ village.description|default:"-" }}</li>
+            </ul>
+
+            <form method="POST">
+                {% csrf_token %}
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <a href="{% url 'manage_villages' %}" class="btn btn-secondary me-md-2">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Delete Village
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

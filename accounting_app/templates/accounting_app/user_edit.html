@@ -1,0 +1,72 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Edit User{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>Edit User - {{ edit_user.username }}</h4>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" name="username" class="form-control" value="{{ edit_user.username }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control" value="{{ edit_user.email|default:"" }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">New Password (leave blank to keep current)</label>
+                        <input type="password" name="password" class="form-control" placeholder="Enter new password">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Role</label>
+                        <select name="role" class="form-select" required>
+                            <option value="viewer" {% if profile.role == 'viewer' %}selected{% endif %}>Viewer - Can view only</option>
+                            <option value="accountant" {% if profile.role == 'accountant' %}selected{% endif %}>Accountant - Can view and edit</option>
+                            <option value="manager" {% if profile.role == 'manager' %}selected{% endif %}>Manager - Can view, edit, and delete</option>
+                            <option value="admin" {% if profile.role == 'admin' %}selected{% endif %}>Administrator - Full access</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_active" id="is_active" {% if edit_user.is_active %}checked{% endif %}>
+                            <label class="form-check-label" for="is_active">Active</label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Update User</button>
+                    <a href="{% url 'user_list' %}" class="btn btn-secondary">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">User Info</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Current Role:</strong>
+                    {% if profile.role == 'admin' %}
+                        <span class="badge bg-danger">Administrator</span>
+                    {% elif profile.role == 'manager' %}
+                        <span class="badge bg-warning">Manager</span>
+                    {% elif profile.role == 'accountant' %}
+                        <span class="badge bg-primary">Accountant</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Viewer</span>
+                    {% endif %}
+                </p>
+                <p><strong>Created:</strong> {{ edit_user.date_joined }}</p>
+                <p><strong>Last Login:</strong> {{ edit_user.last_login|default:"Never" }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

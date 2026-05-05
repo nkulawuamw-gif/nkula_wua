@@ -1,0 +1,60 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Board of Trustees{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="page-title page-title-{{ user.userprofile.title_animation|default:'gradient' }}"><i class="bi bi-people"></i> Board of Trustees</h2>
+    <a href="{% url 'board_of_trustees_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Add Member
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Members List</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>Name of Member</th>
+                        <th>Sex</th>
+                        <th>Village</th>
+                        <th>Scheme Present</th>
+                        <th>Title/Position</th>
+                        <th>Contact</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for member in members %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ member.name }}</td>
+                        <td>{{ member.get_sex_display }}</td>
+                        <td>{{ member.village }}</td>
+                        <td>{{ member.scheme_present }}</td>
+                        <td>{{ member.title|default:"-" }}</td>
+                        <td>{{ member.contact|default:"-" }}</td>
+                        <td>
+                            <a href="{% url 'board_of_trustees_edit' member.pk %}" class="btn btn-sm btn-warning">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'board_of_trustees_delete' member.pk %}" class="btn btn-sm btn-danger">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">No members found. Click "Add Member" to create one.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,583 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Theme Settings - Nkulawua{% endblock %}
+
+{% block extra_css %}
+<style>
+    .theme-settings {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .theme-card {
+        background: var(--bg-secondary);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 16px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border: 1px solid var(--border-color);
+    }
+    
+    .theme-card-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .theme-card-header i {
+        font-size: 20px;
+        color: var(--sidebar-active);
+    }
+    
+    .theme-card-header h5 {
+        margin: 0;
+        font-weight: 600;
+        font-size: 16px;
+    }
+    
+    .setting-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .setting-row:last-child {
+        border-bottom: none;
+    }
+    
+    .setting-label {
+        font-weight: 500;
+        color: var(--text-primary);
+        min-width: 80px;
+        font-size: 13px;
+    }
+    
+    .color-options {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+    }
+    
+    .color-box {
+        width: 22px;
+        height: 22px;
+        border-radius: 5px;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: all 0.2s;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    
+    .color-box:hover {
+        transform: scale(1.15);
+    }
+    
+    .color-box.selected {
+        border-color: #333;
+        box-shadow: 0 0 0 2px rgba(0,0,0,0.2);
+    }
+    
+    .color-box.dark-navy { background: #1a1a2e; }
+    .color-box.light-green { background: #e8f5e9; border: 1px solid #ccc; }
+    .color-box.blue { background: #0d6efd; }
+    .color-box.green { background: #198754; }
+    .color-box.purple { background: #6f42c1; }
+    .color-box.red { background: #dc3545; }
+    .color-box.orange { background: #ffc107; }
+    .color-box.teal { background: #20c997; }
+    .color-box.dark-blue { background: #1a365d; }
+    .color-box.black { background: #212529; }
+    .color-box.white { background: #ffffff; border: 1px solid #ccc; }
+    
+    .slider-container {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        flex: 1;
+    }
+    
+    .slider {
+        flex: 1;
+        height: 6px;
+        border-radius: 3px;
+        background: var(--border-color);
+        appearance: none;
+        outline: none;
+    }
+    
+    .slider::-webkit-slider-thumb {
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--sidebar-active);
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .slider-value {
+        min-width: 50px;
+        text-align: center;
+        font-weight: 600;
+        color: var(--text-primary);
+        background: var(--bg-primary);
+        padding: 6px 12px;
+        border-radius: 6px;
+    }
+    
+    .logo-preview {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 80px;
+        background: var(--bg-primary);
+        border-radius: 10px;
+        margin-bottom: 16px;
+        padding: 16px;
+    }
+    
+    .logo-preview img {
+        max-width: 100%;
+        height: auto;
+        object-fit: contain;
+    }
+    
+    .logo-preview-placeholder {
+        color: var(--text-secondary);
+        text-align: center;
+        font-size: 13px;
+    }
+    
+    .logo-preview-placeholder i {
+        font-size: 32px;
+        margin-bottom: 8px;
+        display: block;
+    }
+    
+    .btn-upload {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: var(--sidebar-active);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    
+    .btn-upload:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+    }
+    
+    .btn-save {
+        width: 100%;
+        padding: 14px;
+        background: linear-gradient(135deg, #0984e3, #00b894);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 4px 12px rgba(9, 132, 227, 0.3);
+    }
+    
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(9, 132, 227, 0.4);
+    }
+    
+    .preview-section {
+        background: var(--bg-primary);
+        border-radius: 10px;
+        padding: 12px;
+        margin-top: 12px;
+    }
+    
+    .preview-title {
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: var(--text-primary);
+        font-size: 13px;
+    }
+    
+    .preview-card {
+        border-radius: 6px;
+        padding: 10px;
+        margin-bottom: 8px;
+        transition: all 0.3s;
+    }
+    
+    .preview-card h6 {
+        margin-bottom: 6px;
+        font-size: 12px;
+    }
+    
+    .preview-card p {
+        font-size: 11px;
+    }
+    
+    #previewHeader {
+        padding: 10px;
+        font-size: 12px;
+    }
+    
+    #previewSidebar {
+        padding: 10px;
+        min-height: 60px;
+    }
+    
+    #previewSidebar div {
+        padding: 5px;
+        font-size: 10px;
+    }
+    
+    .two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+    
+    @media (max-width: 768px) {
+        .two-col {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="theme-settings">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4><i class="bi bi-palette"></i> Theme Settings</h4>
+        <a href="{% url 'settings' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Back to Settings
+        </a>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" id="themeForm">
+        {% csrf_token %}
+        
+        <div class="two-col">
+            <div>
+                <!-- Theme Mode Toggle -->
+                <div class="theme-card">
+                    <div class="theme-card-header">
+                        <i class="bi bi-moon-stars"></i>
+                        <h5>Theme Mode</h5>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">Mode</span>
+                        <select name="theme" class="form-select" style="width: auto;" onchange="this.form.submit()">
+                            <option value="light" {% if form.instance.theme == 'light' or not form.instance.theme %}selected{% endif %}>Light</option>
+                            <option value="dark" {% if form.instance.theme == 'dark' %}selected{% endif %}>Dark</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Title Animation Section -->
+                <div class="theme-card">
+                    <div class="theme-card-header">
+                        <i class="bi bi-type"></i>
+                        <h5>Title Animation</h5>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">Animation</span>
+                        <select name="title_animation" class="form-select" style="width: auto;" onchange="this.form.submit()">
+                            <option value="none" {% if form.instance.title_animation == 'none' %}selected{% endif %}>None</option>
+                            <option value="underline" {% if form.instance.title_animation == 'underline' %}selected{% endif %}>Underline</option>
+                            <option value="logo" {% if form.instance.title_animation == 'logo' %}selected{% endif %}>Logo Effect</option>
+                            <option value="fade" {% if form.instance.title_animation == 'fade' %}selected{% endif %}>Fade In</option>
+                            <option value="fadeslide" {% if form.instance.title_animation == 'fadeslide' %}selected{% endif %}>Fade Slide</option>
+                            <option value="gradient" {% if form.instance.title_animation == 'gradient' %}selected{% endif %}>Gradient</option>
+                            <option value="pulse" {% if form.instance.title_animation == 'pulse' %}selected{% endif %}>Pulse</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Theme / Skin Section -->
+                <div class="theme-card">
+                    <div class="theme-card-header">
+                        <i class="bi bi-palette"></i>
+                        <h5>Theme / Skin</h5>
+                    </div>
+                    
+                    <!-- Card Color -->
+                    <div class="setting-row">
+                        <span class="setting-label">Card</span>
+                        <div class="color-options">
+                            <div class="color-box light-green" data-type="card" data-color="#e8f5e9" onclick="selectColor(this)"></div>
+                            <div class="color-box blue" data-type="card" data-color="#0d6efd" onclick="selectColor(this)"></div>
+                            <div class="color-box green" data-type="card" data-color="#198754" onclick="selectColor(this)"></div>
+                            <div class="color-box purple" data-type="card" data-color="#6f42c1" onclick="selectColor(this)"></div>
+                            <div class="color-box red" data-type="card" data-color="#dc3545" onclick="selectColor(this)"></div>
+                            <div class="color-box orange" data-type="card" data-color="#ffc107" onclick="selectColor(this)"></div>
+                            <div class="color-box teal" data-type="card" data-color="#20c997" onclick="selectColor(this)"></div>
+                        </div>
+                        <input type="hidden" name="card_color" id="cardColorInput" value="{{ form.instance.accent_color|default:'primary' }}">
+                    </div>
+                    
+                    <!-- Text Color -->
+                    <div class="setting-row">
+                        <span class="setting-label">Text</span>
+                        <div class="color-options">
+                            <div class="color-box dark-blue" data-type="text" data-color="#1a365d" onclick="selectColor(this)"></div>
+                            <div class="color-box black" data-type="text" data-color="#212529" onclick="selectColor(this)"></div>
+                            <div class="color-box white" data-type="text" data-color="#ffffff" onclick="selectColor(this)"></div>
+                        </div>
+                        <input type="hidden" name="text_color" id="textColorInput" value="dark">
+                    </div>
+                    
+                    <!-- Header Color -->
+                    <div class="setting-row">
+                        <span class="setting-label">Header</span>
+                        <div class="color-options">
+                            <div class="color-box light-green" data-type="header" data-color="#e8f5e9" onclick="selectColor(this)"></div>
+                            <div class="color-box blue" data-type="header" data-color="#0d6efd" onclick="selectColor(this)"></div>
+                            <div class="color-box green" data-type="header" data-color="#198754" onclick="selectColor(this)"></div>
+                            <div class="color-box purple" data-type="header" data-color="#6f42c1" onclick="selectColor(this)"></div>
+                            <div class="color-box red" data-type="header" data-color="#dc3545" onclick="selectColor(this)"></div>
+                            <div class="color-box dark-navy" data-type="header" data-color="#1a1a2e" onclick="selectColor(this)"></div>
+                        </div>
+                        <input type="hidden" name="header_color" id="headerColorInput" value="primary">
+                    </div>
+                    
+                    <!-- Sidebar Color -->
+                    <div class="setting-row">
+                        <span class="setting-label">Sidebar</span>
+                        <div class="color-options">
+                            <div class="color-box dark-navy" data-type="sidebar" data-color="#1a1a2e" onclick="selectColor(this)"></div>
+                            <div class="color-box black" data-type="sidebar" data-color="#212529" onclick="selectColor(this)"></div>
+                            <div class="color-box blue" data-type="sidebar" data-color="#0d6efd" onclick="selectColor(this)"></div>
+                            <div class="color-box green" data-type="sidebar" data-color="#198754" onclick="selectColor(this)"></div>
+                            <div class="color-box purple" data-type="sidebar" data-color="#6f42c1" onclick="selectColor(this)"></div>
+                        </div>
+                        <input type="hidden" name="sidebar_color" id="sidebarColorInput" value="dark">
+                    </div>
+                    
+                    <!-- Ticker Color -->
+                    <div class="setting-row">
+                        <span class="setting-label">Ticker</span>
+                        <div class="color-options">
+                            <div class="color-box dark-navy" data-type="ticker" data-color="#1a1a2e" onclick="selectColor(this)"></div>
+                            <div class="color-box blue" data-type="ticker" data-color="#0d6efd" onclick="selectColor(this)"></div>
+                            <div class="color-box green" data-type="ticker" data-color="#198754" onclick="selectColor(this)"></div>
+                            <div class="color-box purple" data-type="ticker" data-color="#6f42c1" onclick="selectColor(this)"></div>
+                            <div class="color-box red" data-type="ticker" data-color="#dc3545" onclick="selectColor(this)"></div>
+                            <div class="color-box orange" data-type="ticker" data-color="#ffc107" onclick="selectColor(this)"></div>
+                            <div class="color-box teal" data-type="ticker" data-color="#20c997" onclick="selectColor(this)"></div>
+                        </div>
+                        <input type="hidden" name="ticker_color" id="tickerColorInput" value="dark">
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <!-- Preview Section -->
+                <div class="theme-card">
+                    <div class="theme-card-header">
+                        <i class="bi bi-eye"></i>
+                        <h5>Live Preview</h5>
+                    </div>
+                    
+                    <div class="preview-section">
+                        <div class="preview-title">Card Preview</div>
+                        <div class="preview-card" id="previewCard" style="background: #ffffff; border: 1px solid #eee;">
+                            <h6 style="margin-bottom: 10px;">Sample Card Header</h6>
+                            <p style="margin: 0; font-size: 14px;">This is how your card content will appear with the selected theme.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="preview-section">
+                        <div class="preview-title">Header Preview</div>
+                        <div id="previewHeader" style="background: #0d6efd; padding: 15px; border-radius: 8px; color: white;">
+                            <strong>Sample Header</strong>
+                        </div>
+                    </div>
+                    
+                    <div class="preview-section">
+                        <div class="preview-title">Sidebar Preview</div>
+                        <div style="display: flex; gap: 10px;">
+                            <div id="previewSidebar" style="background: #1a1a2e; padding: 15px; border-radius: 8px; color: white; flex: 1; min-height: 100px;">
+                                <div style="padding: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; margin-bottom: 5px;"></div>
+                                <div style="padding: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; margin-bottom: 5px;"></div>
+                                <div style="padding: 8px; background: rgba(255,255,255,0.1); border-radius: 4px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="preview-section">
+                        <div class="preview-title">Ticker Preview</div>
+                        <div id="previewTicker" style="background: #1a1a2e; padding: 10px; border-radius: 8px; color: white; overflow: hidden;">
+                            <div style="animation: ticker 10s linear infinite; display: flex; gap: 30px;">
+                                <span><i class="bi bi-cash-coin"></i> Collections</span>
+                                <span><i class="bi bi-people"></i> Beneficiaries</span>
+                                <span><i class="bi bi-cash-coin"></i> Collections</span>
+                                <span><i class="bi bi-people"></i> Beneficiaries</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Save Button -->
+                <button type="submit" class="btn-save">
+                    <i class="bi bi-check-circle"></i> Save Theme
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Logo upload preview
+    document.getElementById('logoInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const preview = document.getElementById('logoPreview');
+                preview.innerHTML = `<img src="${event.target.result}" alt="Logo Preview" style="max-height: 120px;">`;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Logo size slider
+    const logoSlider = document.getElementById('logoSizeSlider');
+    const logoSizeValue = document.getElementById('logoSizeValue');
+    const logoSizeInput = document.getElementById('logoSizeInput');
+    
+    logoSlider.addEventListener('input', function() {
+        logoSizeValue.textContent = this.value + 'px';
+        logoSizeInput.value = this.value;
+    });
+
+    function applyLogoSize() {
+        const size = logoSlider.value;
+        const previewLogo = document.getElementById('previewLogo');
+        if (previewLogo) {
+            previewLogo.style.height = size + 'px';
+            previewLogo.style.width = 'auto';
+        }
+        logoSizeInput.value = size;
+        // Update the logo preview in the sidebar/main content if it exists
+        document.querySelectorAll('.sidebar img[alt="Logo"], .dashboard-logo').forEach(img => {
+            img.style.height = size + 'px';
+        });
+    }
+
+    // Color selection
+    function selectColor(element) {
+        const type = element.dataset.type;
+        const color = element.dataset.color;
+        
+        // Remove selected from all color boxes of this type
+        document.querySelectorAll(`.color-box[data-type="${type}"]`).forEach(box => {
+            box.classList.remove('selected');
+        });
+        
+        // Add selected to clicked element
+        element.classList.add('selected');
+        
+        // Update hidden input
+        const inputId = type + 'ColorInput';
+        document.getElementById(inputId).value = color;
+        
+        // Update preview
+        updatePreview(type, color);
+        
+        // Save color to localStorage and reload
+        if (type === 'card') {
+            const colorMap = {
+                '#e8f5e9': 'primary',
+                '#0d6efd': 'primary',
+                '#198754': 'success',
+                '#6f42c1': 'purple',
+                '#dc3545': 'danger',
+                '#ffc107': 'warning',
+                '#20c997': 'teal'
+            };
+            localStorage.setItem('accentColor', colorMap[color] || 'primary');
+            localStorage.setItem('accentColorHex', color);
+            window.location.reload();
+        } else if (type === 'sidebar') {
+            const sidebarMap = {
+                '#1a1a2e': 'dark',
+                '#0d6efd': 'blue',
+                '#198754': 'green',
+                '#6f42c1': 'purple',
+                '#212529': 'black'
+            };
+            localStorage.setItem('sidebarColor', sidebarMap[color] || 'dark');
+            localStorage.setItem('sidebarColorHex', color);
+            window.location.reload();
+        } else if (type === 'ticker') {
+            const tickerMap = {
+                '#1a1a2e': 'dark',
+                '#0d6efd': 'blue',
+                '#198754': 'green',
+                '#6f42c1': 'purple',
+                '#dc3545': 'red',
+                '#ffc107': 'orange',
+                '#20c997': 'teal'
+            };
+            localStorage.setItem('tickerColor', tickerMap[color] || 'dark');
+            localStorage.setItem('tickerColorHex', color);
+            window.location.reload();
+        } else if (type === 'header') {
+            const headerMap = {
+                '#e8f5e9': 'light-green',
+                '#0d6efd': 'blue',
+                '#198754': 'green',
+                '#6f42c1': 'purple',
+                '#dc3545': 'red',
+                '#1a1a2e': 'dark-navy'
+            };
+            const colorName = headerMap[color] || 'blue';
+            localStorage.setItem('headerColor', colorName);
+            localStorage.setItem('headerColorHex', color);
+            document.getElementById('headerColorInput').value = colorName;
+            updatePreview(type, color);
+            // Auto-submit form to save
+            setTimeout(() => {
+                document.getElementById('themeForm').submit();
+            }, 300);
+        }
+    }
+
+    function updatePreview(type, color) {
+        if (type === 'card') {
+            document.getElementById('previewCard').style.background = color;
+        } else if (type === 'header') {
+            document.getElementById('previewHeader').style.background = color;
+        } else if (type === 'sidebar') {
+            document.getElementById('previewSidebar').style.background = color;
+        } else if (type === 'ticker') {
+            document.getElementById('previewTicker').style.background = color;
+        }
+    }
+
+    // Initialize with default selections
+    document.addEventListener('DOMContentLoaded', function() {
+        // Select default colors
+        const defaultCard = document.querySelector('.color-box[data-type="card"][data-color="#e8f5e9"]');
+        const defaultText = document.querySelector('.color-box[data-type="text"][data-color="#1a365d"]');
+        const defaultHeader = document.querySelector('.color-box[data-type="header"][data-color="#0d6efd"]');
+        const defaultSidebar = document.querySelector('.color-box[data-type="sidebar"][data-color="#1a1a2e"]');
+        const defaultTicker = document.querySelector('.color-box[data-type="ticker"][data-color="#1a1a2e"]');
+        
+        [defaultCard, defaultText, defaultHeader, defaultSidebar, defaultTicker].forEach(el => {
+            if (el) el.classList.add('selected');
+        });
+    });
+</script>
+{% endblock %}

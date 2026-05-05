@@ -1,0 +1,149 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Bulk Payment Import{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4><i class="bi bi-upload"></i> Bulk Payment Import</h4>
+    <a href="{% url 'payment_list' %}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back to Payments</a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-arrow-up"></i> Import Payments from Excel</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Select Excel File</label>
+                        <input type="file" name="excel_file" class="form-control" accept=".xlsx,.xls" required>
+                        <small class="text-muted">Supported formats: Excel (.xlsx, .xls)</small>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success"><i class="bi bi-upload"></i> Import Payments</button>
+                        <a href="{% url 'payment_list' %}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-clipboard"></i> Clipboard Sample Format</h5>
+            </div>
+            <div class="card-body">
+                <p>Copy this sample data to Excel or Google Sheets:</p>
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>client_name</th>
+                                <th>payment_date</th>
+                                <th>amount</th>
+                                <th>payment_method</th>
+                                <th>reference</th>
+                                <th>account</th>
+                                <th>notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>John Doe</td>
+                                <td>2026-01-15</td>
+                                <td>5000</td>
+                                <td>cash</td>
+                                <td>REF-001</td>
+                                <td>Water Charges</td>
+                                <td>January payment</td>
+                            </tr>
+                            <tr>
+                                <td>Jane Smith</td>
+                                <td>2026-01-15</td>
+                                <td>3000</td>
+                                <td>bank_transfer</td>
+                                <td>REF-002</td>
+                                <td>Water Charges</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>Village Committee</td>
+                                <td>2026-01-20</td>
+                                <td>10000</td>
+                                <td>mobile_money</td>
+                                <td>REF-003</td>
+                                <td>Water Charges</td>
+                                <td>Quarterly payment</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <button class="btn btn-outline-secondary btn-sm" onclick="copyTableToClipboard()">
+                    <i class="bi bi-clipboard"></i> Copy to Clipboard
+                </button>
+                <a href="{% url 'download_payment_template' %}" class="btn btn-outline-primary btn-sm ms-2">
+                    <i class="bi bi-download"></i> Download Excel Template
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Instructions</h5>
+            </div>
+            <div class="card-body">
+                <h6>Required Columns:</h6>
+                <ul>
+                    <li><strong>client_name</strong> - Exact name of client (required)</li>
+                    <li><strong>payment_date</strong> - Format: YYYY-MM-DD (required)</li>
+                    <li><strong>amount</strong> - Payment amount (required)</li>
+                </ul>
+                
+                <h6>Optional Columns:</h6>
+                <ul>
+                    <li><strong>payment_method</strong> - cash, bank_transfer, mobile_money, check, credit_card, other (default: cash)</li>
+                    <li><strong>reference</strong> - Transaction reference</li>
+                    <li><strong>account</strong> - Chart of account name (default: first revenue account)</li>
+                    <li><strong>notes</strong> - Payment notes</li>
+                </ul>
+                
+                <hr>
+                
+                <h6>Payment Methods:</h6>
+                <ul>
+                    <li>cash</li>
+                    <li>bank_transfer</li>
+                    <li>mobile_money</li>
+                    <li>check</li>
+                    <li>credit_card</li>
+                    <li>other</li>
+                </ul>
+                
+                <hr>
+                
+                <p class="text-muted"><small>After import, the system will automatically update each client's outstanding and current balance.</small></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyTableToClipboard() {
+    const table = document.querySelector('table');
+    const range = document.createRange();
+    range.selectNode(table);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    document.execCommand('copy');
+    window.getSelection().removeAllRanges();
+    alert('Table copied to clipboard! You can paste it into Excel or Google Sheets.');
+}
+</script>
+{% endblock %}

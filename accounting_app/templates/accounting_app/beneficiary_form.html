@@ -1,0 +1,101 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}{{ action }} Beneficiary{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>{{ action }} Beneficiary</h4>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if form.errors %}
+            <div class="alert alert-danger">
+                <strong>Please correct the following errors:</strong>
+                <ul class="mb-0 mt-2">
+                    {% for field, errors in form.errors.items %}
+                        {% if field != 'non_field_errors' %}
+                            {% for error in errors %}
+                                <li>{{ field|capfirst }}: {{ error }}</li>
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Beneficiary Name <span class="text-danger">*</span></label>
+                    {{ form.name }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Beneficiary Type <span class="text-danger">*</span></label>
+                    {{ form.beneficiary_type }}
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Phone</label>
+                    {{ form.phone }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Village <span class="text-danger">*</span></label>
+                    {{ form.village }}
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Scheme <span class="text-danger">*</span></label>
+                    {{ form.scheme }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Country</label>
+                    {{ form.country }}
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Tax ID</label>
+                    {{ form.tax_id }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Household Count <span class="text-danger">*</span></label>
+                    {{ form.household_count }}
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Credit Limit <span class="text-danger">*</span></label>
+                    {{ form.credit_limit }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Payment Terms <span class="text-danger">*</span></label>
+                    {{ form.payment_terms }}
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <div class="form-check">
+                    {{ form.is_active }}
+                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                        <strong>Active Beneficiary</strong>
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">{{ action }}</button>
+            <a href="{% url 'beneficiary_list' %}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

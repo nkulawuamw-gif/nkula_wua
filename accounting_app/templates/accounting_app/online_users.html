@@ -1,0 +1,166 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Online Users{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4><i class="bi bi-people-fill"></i> Online Users</h4>
+    <div class="d-flex gap-2">
+        <a href="{% url 'activity_log' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-clock-history"></i> Activity Log
+        </a>
+        <button onclick="refreshUsers()" class="btn btn-primary">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h1 class="mb-0">{{ online_count }}</h1>
+                <small>Currently Online</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h1 class="mb-0">{{ total_users }}</h1>
+                <small>Total Active Users</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-secondary text-white">
+            <div class="card-body text-center">
+                <h1 class="mb-0">{{ threshold_minutes }}</h1>
+                <small>Minutes Online Threshold</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-circle-fill" id="onlineIndicator"></i> Currently Active Users (Last {{ threshold_minutes }} minutes)</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Role</th>
+                        <th>IP Address</th>
+                        <th>Last Activity</th>
+                        <th>Login Time</th>
+                        <th>Browser/Device</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for session in active_sessions %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="bg-primary rounded-circle text-white d-flex align-items-center justify-content-center me-2" style="width: 35px; height: 35px; font-size: 14px;">
+                                    {{ session.user.username|slice:":1"|upper }}
+                                </div>
+                                <strong>{{ session.user.username }}</strong>
+                                {% if session.user == request.user %}
+                                    <span class="badge bg-info ms-2">You</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if session.user.userprofile.role == 'admin' %}danger{% elif session.user.userprofile.role == 'manager' %}warning{% elif session.user.userprofile.role == 'accountant' %}primary{% else %}secondary{% endif %}">
+                                {{ session.user.userprofile.get_role_display }}
+                            </span>
+                        </td>
+                        <td>{{ session.ip_address|default:"Unknown" }}</td>
+                        <td>{{ session.last_activity|timesince }} ago</td>
+                        <td>{{ session.login_time|date:"H:i:s" }}</td>
+                        <td>
+                            <small class="text-muted">{{ session.user_agent|truncatechars:40 }}</small>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">
+                            <i class="bi bi-person-x fs-1 d-block mb-2"></i>
+                            No users currently online
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header bg-secondary text-white">
+        <h5 class="mb-0">All Recent Sessions</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>IP Address</th>
+                        <th>Status</th>
+                        <th>Login Time</th>
+                        <th>Last Activity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for session in all_sessions %}
+                    <tr>
+                        <td>
+                            <strong>{{ session.user.username }}</strong>
+                            {% if session.user == request.user %}
+                                <span class="badge bg-info ms-2">You</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ session.ip_address|default:"Unknown" }}</td>
+                        <td>
+                            {% if session.is_online %}
+                                <span class="badge bg-success">Online</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Away</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ session.login_time|date:"Y-m-d H:i" }}</td>
+                        <td>{{ session.last_activity|timesince }} ago</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">No sessions recorded</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function refreshUsers() {
+    location.reload();
+}
+
+// Auto-refresh every 30 seconds
+setInterval(refreshUsers, 30000);
+
+// Blink online indicator
+setInterval(function() {
+    const indicator = document.getElementById('onlineIndicator');
+    if (indicator) {
+        indicator.style.opacity = indicator.style.opacity === '0.5' ? '1' : '0.5';
+    }
+}, 1000);
+</script>
+{% endblock %}

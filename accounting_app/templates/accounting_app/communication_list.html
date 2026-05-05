@@ -1,0 +1,146 @@
+{% extends 'accounting_app/base.html' %}
+
+{% block title %}Communications - Nkulawua{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4>Communications</h4>
+    </div>
+
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-chat-dots"></i> Quick Actions</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        <a href="{% url 'communication_create' %}?type=sms" class="list-group-item list-group-item-action {% if comm_type == 'sms' %}active{% endif %}">
+                            <i class="bi bi-chat-dots text-info"></i> Send SMS
+                        </a>
+                        <a href="{% url 'communication_create' %}?type=whatsapp" class="list-group-item list-group-item-action {% if comm_type == 'whatsapp' %}active{% endif %}">
+                            <i class="bi bi-whatsapp text-success"></i> Send WhatsApp
+                        </a>
+                        <a href="{% url 'communication_create' %}?type=voice_call" class="list-group-item list-group-item-action {% if comm_type == 'voice_call' %}active{% endif %}">
+                            <i class="bi bi-telephone text-warning"></i> Voice Call
+                        </a>
+                        <a href="{% url 'communication_create' %}?type=video_call" class="list-group-item list-group-item-action {% if comm_type == 'video_call' %}active{% endif %}">
+                            <i class="bi bi-camera-video text-primary"></i> Video Call
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Statistics</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6 mb-2">
+                            <h5 class="text-info">{{ menu_counts.sms|default:0 }}</h5>
+                            <small class="text-muted">SMS</small>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <h5 class="text-success">{{ menu_counts.whatsapp|default:0 }}</h5>
+                            <small class="text-muted">WhatsApp</small>
+                        </div>
+                        <div class="col-6">
+                            <h5 class="text-warning">{{ menu_counts.voice_call|default:0 }}</h5>
+                            <small class="text-muted">Voice</small>
+                        </div>
+                        <div class="col-6">
+                            <h5 class="text-primary">{{ menu_counts.video_call|default:0 }}</h5>
+                            <small class="text-muted">Video</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <ul class="nav nav-pills card-header-tabs">
+                        <li class="nav-item">
+                            <a class="nav-link {% if not comm_type %}active{% endif %}" href="{% url 'communication_list' %}">All</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if comm_type == 'sms' %}active{% endif %}" href="{% url 'communication_list' %}?type=sms">SMS</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if comm_type == 'whatsapp' %}active{% endif %}" href="{% url 'communication_list' %}?type=whatsapp">WhatsApp</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if comm_type == 'voice_call' %}active{% endif %}" href="{% url 'communication_list' %}?type=voice_call">Voice</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if comm_type == 'video_call' %}active{% endif %}" href="{% url 'communication_list' %}?type=video_call">Video</a>
+                        </li>
+                    </ul>
+                    <a href="{% url 'communication_create' %}" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus-circle"></i> New
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Recipient</th>
+                                    <th>Message</th>
+                                    <th>Status</th>
+                                    <th>Sent By</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for comm in communications %}
+                                <tr>
+                                    <td>
+                                        {% if comm.communication_type == 'sms' %}
+                                        <span class="badge bg-info"><i class="bi bi-chat-dots"></i> SMS</span>
+                                        {% elif comm.communication_type == 'voice_call' %}
+                                        <span class="badge bg-warning"><i class="bi bi-telephone"></i> Voice</span>
+                                        {% elif comm.communication_type == 'video_call' %}
+                                        <span class="badge bg-primary"><i class="bi bi-camera-video"></i> Video</span>
+                                        {% elif comm.communication_type == 'whatsapp' %}
+                                        <span class="badge bg-success"><i class="bi bi-whatsapp"></i> WhatsApp</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ comm.recipient }}</td>
+                                    <td>{{ comm.message|truncatechars:50 }}</td>
+                                    <td>
+                                        {% if comm.status == 'delivered' %}
+                                        <span class="badge bg-success">Delivered</span>
+                                        {% elif comm.status == 'sent' %}
+                                        <span class="badge bg-primary">Sent</span>
+                                        {% elif comm.status == 'failed' %}
+                                        <span class="badge bg-danger">Failed</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ comm.sent_by.username }}</td>
+                                    <td>{{ comm.sent_at|date:"M d, Y H:i" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        <i class="bi bi-chat-dots" style="font-size: 40px;"></i>
+                                        <p class="mt-2">No communications yet</p>
+                                        <a href="{% url 'communication_create' %}" class="btn btn-primary">Send First Message</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

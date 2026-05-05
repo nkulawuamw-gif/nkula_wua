@@ -1,0 +1,525 @@
+{% extends "accounting_app/base.html" %}
+{% load custom_filters %}
+{% block title %}Financial Reports{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center">
+        <div>
+            <h4 class="mb-0">Financial Reports</h4>
+            <small class="text-muted">Generated on {% now "Y-m-d" %}</small>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#saveReportModal">
+            <i class="bi bi-save"></i> Save Report
+        </button>
+        <a href="{% url 'export_report_pdf' %}?from_date={{ from_date|date:'Y-m-d' }}&to_date={{ to_date|date:'Y-m-d' }}" class="btn btn-danger" target="_blank">
+            <i class="bi bi-file-pdf"></i> Export PDF
+        </a>
+        <a href="{% url 'export_report_excel' %}?from_date={{ from_date|date:'Y-m-d' }}&to_date={{ to_date|date:'Y-m-d' }}" class="btn btn-success">
+            <i class="bi bi-file-excel"></i> Export Excel
+        </a>
+        <button onclick="window.print()" class="btn btn-primary">
+            <i class="bi bi-printer"></i> Print
+        </button>
+        <div class="dropdown">
+            <button class="btn btn-info dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="bi bi-share"></i> Share
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                    <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#emailModal">
+                        <i class="bi bi-envelope"></i> Send via Email
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="#" onclick="openWhatsApp()">
+                        <i class="bi bi-whatsapp"></i> Send via WhatsApp
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#smsModal">
+                        <i class="bi bi-phone"></i> Send via SMS
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="saveReportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-save"></i> Save Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'save_report' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Report Name</label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g., Q1 2024 Financial Report" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Report Type</label>
+                        <select name="report_type" class="form-select" required>
+                            <option value="financial">Financial Report</option>
+                            <option value="scheme">Scheme Performance Report</option>
+                            <option value="expense">Expense Report</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">From Date</label>
+                                <input type="date" name="from_date" class="form-control" value="{{ from_date|date:'Y-m-d' }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">To Date</label>
+                                <input type="date" name="to_date" class="form-control" value="{{ to_date|date:'Y-m-d' }}" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <small>This will save the current report data with these parameters.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Save Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-info mb-4">
+    <h5 class="mb-2"><i class="bi bi-folder"></i> Report Types</h5>
+    <div class="row">
+        <div class="col-md-4">
+            <a href="{% url 'reports' %}" class="btn btn-primary w-100 mb-2">
+                <i class="bi bi-graph-up"></i> Financial Summary Report
+            </a>
+        </div>
+        <div class="col-md-4">
+            <a href="{% url 'scheme_reports' %}" class="btn btn-success w-100 mb-2">
+                <i class="bi bi-building"></i> Scheme Performance Report
+            </a>
+        </div>
+        <div class="col-md-4">
+            <a href="{% url 'expense_reports' %}" class="btn btn-warning w-100 mb-2">
+                <i class="bi bi-wallet2"></i> Expense Report
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="emailModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-envelope"></i> Send Report via Email</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'send_report_email' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Recipient Email Address</label>
+                        <input type="email" name="email" class="form-control" placeholder="recipient@example.com" required>
+                    </div>
+                    <input type="hidden" name="from_date" value="{{ from_date|date:'Y-m-d' }}">
+                    <input type="hidden" name="to_date" value="{{ to_date|date:'Y-m-d' }}">
+                    <div class="alert alert-info">
+                        <small>The email will contain the complete financial report summary.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-send"></i> Send Email</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="smsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-phone"></i> Send Report via SMS</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="get" action="{% url 'share_report' %}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Phone Number (with country code)</label>
+                        <input type="text" name="phone" class="form-control" placeholder="265991234567" required>
+                    </div>
+                    <input type="hidden" name="method" value="sms">
+                    <input type="hidden" name="from_date" value="{{ from_date|date:'Y-m-d' }}">
+                    <input type="hidden" name="to_date" value="{{ to_date|date:'Y-m-d' }}">
+                    <div class="alert alert-warning">
+                        <small>SMS is limited to 160 characters. Only summary will be sent.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-send"></i> Send SMS</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openWhatsApp() {
+    var phone = prompt("Enter phone number with country code (e.g., 265991234567):");
+    if (phone) {
+        phone = phone.trim().replace(/[\s\+\-]/g, '');
+        if (!phone.startsWith('265') && !phone.startsWith('0')) {
+            phone = '265' + phone;
+        }
+        if (phone.startsWith('0')) {
+            phone = '265' + phone.substring(1);
+        }
+        
+        var currencySymbol = "{{ user.userprofile.get_currency_symbol }}";
+        var message = `{{ user.userprofile.company_name|default:"Accounting System" }}
+        
+Financial Report
+Period: {{ from_date|date:'Y-m-d' }} to {{ to_date|date:'Y-m-d' }}
+
+SUMMARY:
+---------
+Total Invoiced: ${currencySymbol}{{ total_invoiced|floatformat:2 }}
+Total Revenue: ${currencySymbol}{{ total_payments|floatformat:2 }}
+Total Expenses: ${currencySymbol}{{ total_expenses|floatformat:2 }}
+Balance to be Collected: ${currencySymbol}{{ balance_to_collect|floatformat:2 }}
+Net Income: ${currencySymbol}{{ net_income|floatformat:2 }}
+
+Generated on: {% now "Y-m-d H:i" %}`;
+        
+        var encodedMessage = encodeURIComponent(message);
+        var whatsappUrl = "https://wa.me/" + phone + "?text=" + encodedMessage;
+        window.open(whatsappUrl, '_blank');
+    }
+}
+</script>
+
+<style>
+@media print {
+    .nav-tabs, .btn, .card-header a, form, .main-sidebar { display: none !important; }
+    .main-content { margin: 0 !important; padding: 20px !important; }
+    .card { border: 1px solid #ddd !important; box-shadow: none !important; page-break-inside: avoid; }
+    .tab-content { display: block !important; }
+    .tab-pane { display: block !important; page-break-after: always; }
+}
+</style>
+
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h6 class="mb-0"><i class="bi bi-calendar-range"></i> Filter by Date Range</h6>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">From Date</label>
+                <input type="date" name="from_date" class="form-control" value="{{ from_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">To Date</label>
+                <input type="date" name="to_date" class="form-control" value="{{ to_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="bi bi-search"></i> Generate Report
+                </button>
+                <a href="{% url 'reports' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Clear
+                </a>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Report Period</label>
+                <div class="form-control bg-light">
+                    <strong>{{ from_date|date:"Y-m-d" }}</strong> to <strong>{{ to_date|date:"Y-m-d" }}</strong>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if saved_reports %}
+<div class="card mb-4 border-warning">
+    <div class="card-header bg-warning text-dark">
+        <h6 class="mb-0"><i class="bi bi-archive"></i> Saved Reports</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm table-striped">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Period</th>
+                        <th>Net Income</th>
+                        <th>Created By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in saved_reports %}
+                    <tr>
+                        <td><strong>{{ report.name }}</strong></td>
+                        <td><span class="badge bg-secondary">{{ report.get_report_type_display }}</span></td>
+                        <td>{{ report.from_date|date:"Y-m-d" }} to {{ report.to_date|date:"Y-m-d" }}</td>
+                        <td class="{% if report.net_income >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            <strong>{{ user.userprofile.get_currency_symbol }}{{ report.net_income|floatformat:2 }}</strong>
+                        </td>
+                        <td>{{ report.created_by.username }}</td>
+                        <td>
+                            <a href="{% url 'export_report_pdf' %}?from_date={{ report.from_date|date:'Y-m-d' }}&to_date={{ report.to_date|date:'Y-m-d' }}" class="btn btn-sm btn-danger" target="_blank">
+                                <i class="bi bi-file-pdf"></i>
+                            </a>
+                            <a href="{% url 'export_report_excel' %}?from_date={{ report.from_date|date:'Y-m-d' }}&to_date={{ report.to_date|date:'Y-m-d' }}" class="btn btn-sm btn-success">
+                                <i class="bi bi-file-excel"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<ul class="nav nav-tabs mb-4" id="reportTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <a href="{% url 'reports' %}" class="nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}" id="summary-tab">
+            <i class="bi bi-grid-3x3-gap"></i> Financial Summary
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a href="{% url 'scheme_reports' %}" class="nav-link {% if request.resolver_match.url_name == 'scheme_reports' %}active{% endif %}" id="scheme-tab">
+            <i class="bi bi-building"></i> Scheme Performance
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a href="{% url 'expense_reports' %}" class="nav-link {% if request.resolver_match.url_name == 'expense_reports' %}active{% endif %}" id="expense-tab">
+            <i class="bi bi-wallet2"></i> Expense Report
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="collection-tab" data-bs-toggle="tab" data-bs-target="#collection">
+            <i class="bi bi-cash-coin"></i> Balance to be Collected
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="reportTabsContent">
+    <div class="tab-pane fade show active" id="summary" role="tabpanel">
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="bi bi-file-earmark-text"></i> Total Invoiced</h6>
+                        <small>Period: {{ from_date|date:"Y-m-d" }} to {{ to_date|date:"Y-m-d" }}</small>
+                    </div>
+                    <div class="card-body text-center">
+                        <h3 class="text-primary">{{ user.userprofile.get_currency_symbol }}{{ total_invoiced|floatformat:2 }}</h3>
+                        <small class="text-muted">Total Bill Amount</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0"><i class="bi bi-cash-stack"></i> Total Revenue</h6>
+                    </div>
+                    <div class="card-body text-center">
+                        <h3 class="text-success">{{ user.userprofile.get_currency_symbol }}{{ total_payments|floatformat:2 }}</h3>
+                        <small class="text-muted">Payments Received</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <h6 class="mb-0"><i class="bi bi-wallet2"></i> Total Expenses</h6>
+                    </div>
+                    <div class="card-body text-center">
+                        <h3 class="text-danger">{{ user.userprofile.get_currency_symbol }}{{ total_expenses|floatformat:2 }}</h3>
+                        <small class="text-muted">All Expenses</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-{% if net_income >= 0 %}success{% else %}danger{% endif %}">
+                    <div class="card-header bg-{% if net_income >= 0 %}success{% else %}danger{% endif %} text-white">
+                        <h6 class="mb-0"><i class="bi bi-graph-up-arrow"></i> Net Income</h6>
+                    </div>
+                    <div class="card-body text-center">
+                        <h3 class="{% if net_income >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {% if net_income < 0 %}-{% endif %}{{ user.userprofile.get_currency_symbol }}{{ net_income_abs|floatformat:2 }}
+                        </h3>
+                        <small class="text-muted">
+                            {% if net_income >= 0 %}Profit{% else %}Loss{% endif %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Income Statement ({{ from_date|date:"Y-m-d" }} to {{ to_date|date:"Y-m-d" }})</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-striped">
+                            <thead class="table-primary">
+                                <tr>
+                                    <th>Description</th>
+                                    <th class="text-end">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="table-primary">
+                                    <td><strong>Total Invoiced</strong></td>
+                                    <td class="text-end"><strong class="text-primary">{{ user.userprofile.get_currency_symbol }}{{ total_invoiced|floatformat:2 }}</strong></td>
+                                </tr>
+                                <tr class="table-success">
+                                    <td><strong>Total Revenue (Payments from Clients)</strong></td>
+                                    <td class="text-end"><strong class="text-success">{{ user.userprofile.get_currency_symbol }}{{ total_payments|floatformat:2 }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="border-0"></td>
+                                </tr>
+                                <tr class="table-danger">
+                                    <td><strong>Less: Total Expenses</strong></td>
+                                    <td class="text-end"><strong class="text-danger">({{ user.userprofile.get_currency_symbol }}{{ total_expenses|floatformat:2 }})</strong></td>
+                                </tr>
+                                <tr class="border-top border-primary">
+                                    <td><h5><strong>NET INCOME</strong></h5></td>
+                                    <td class="text-end">
+                                        <h5>
+                                            <strong class="{% if net_income >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                                {% if net_income < 0 %}-{% endif %}{{ user.userprofile.get_currency_symbol }}{{ net_income_abs|floatformat:2 }}
+                                            </strong>
+                                        </h5>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <div class="alert {% if net_income >= 0 %}alert-success{% else %}alert-danger{% endif %} mt-3 text-center">
+                            <h4 class="mb-0">
+                                {% if net_income >= 0 %}
+                                    <i class="bi bi-check-circle"></i> You have a PROFIT of {{ user.userprofile.get_currency_symbol }}{{ net_income|floatformat:2 }}
+                                {% else %}
+                                    <i class="bi bi-exclamation-triangle"></i> You have a LOSS of {{ user.userprofile.get_currency_symbol }}{{ net_income_abs|floatformat:2 }}
+                                {% endif %}
+                            </h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="collection" role="tabpanel">
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="bi bi-file-earmark-text"></i> Total Invoiced</h6>
+                    </div>
+                    <div class="card-body text-center">
+                        <h3 class="text-primary">{{ user.userprofile.get_currency_symbol }}{{ total_invoiced|floatformat:2 }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0"><i class="bi bi-cash-stack"></i> Total Collected</h6>
+                    </div>
+                    <div class="card-body text-center">
+                        <h3 class="text-success">{{ user.userprofile.get_currency_symbol }}{{ total_payments|floatformat:2 }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <a href="{% url 'beneficiaries_with_balances' %}" class="text-decoration-none">
+                    <div class="card border-warning hover-shadow" style="cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                        <div class="card-header bg-warning text-dark">
+                            <h6 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Balance to be Collected</h6>
+                        </div>
+                        <div class="card-body text-center">
+                            <h3 class="text-warning">{{ user.userprofile.get_currency_symbol }}{{ balance_to_collect|floatformat:2 }}</h3>
+                            <small class="text-muted">{{ beneficiaries_with_balance_count }} beneficiaries with balances</small>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-warning text-white">
+                        <h5 class="mb-0"><i class="bi bi-receipt"></i> Collection Statement ({{ from_date|date:"Y-m-d" }} to {{ to_date|date:"Y-m-d" }})</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-striped">
+                            <thead class="table-primary">
+                                <tr>
+                                    <th>Description</th>
+                                    <th class="text-end">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="table-primary">
+                                    <td><strong>Total Amount Invoiced</strong></td>
+                                    <td class="text-end"><strong class="text-primary">{{ user.userprofile.get_currency_symbol }}{{ total_invoiced|floatformat:2 }}</strong></td>
+                                </tr>
+                                <tr class="table-success">
+                                    <td><strong>Less: Total Amount Collected (Payments)</strong></td>
+                                    <td class="text-end"><strong class="text-success">({{ user.userprofile.get_currency_symbol }}{{ total_payments|floatformat:2 }})</strong></td>
+                                </tr>
+                                <tr class="border-top border-warning bg-warning-subtle">
+                                    <td><h5><strong>BALANCE TO BE COLLECTED</strong></h5></td>
+                                    <td class="text-end">
+                                        <h5>
+                                            <strong class="text-warning">
+                                                {{ user.userprofile.get_currency_symbol }}{{ balance_to_collect|floatformat:2 }}
+                                            </strong>
+                                        </h5>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <div class="alert alert-warning mt-3 text-center">
+                            <h4 class="mb-0">
+                                <i class="bi bi-hourglass-split"></i> Outstanding Balance to be Collected: {{ user.userprofile.get_currency_symbol }}{{ balance_to_collect|floatformat:2 }}
+                            </h4>
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="{% url 'beneficiaries_with_balances' %}" class="btn btn-warning">
+                                <i class="bi bi-people"></i> View Beneficiaries with Balances
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

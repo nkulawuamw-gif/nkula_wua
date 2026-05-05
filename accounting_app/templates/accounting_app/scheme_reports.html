@@ -1,0 +1,359 @@
+{% extends "accounting_app/base.html" %}
+{% load custom_filters %}
+{% block title %}Scheme Performance Reports{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center">
+        <div>
+            <h4 class="mb-0">Scheme Performance Reports</h4>
+            <small class="text-muted">Generated on {% now "Y-m-d H:i" %}</small>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'export_scheme_report_pdf' %}?from_date={{ from_date|date:'Y-m-d' }}&to_date={{ to_date|date:'Y-m-d' }}" class="btn btn-danger" target="_blank">
+            <i class="bi bi-file-pdf"></i> Export PDF
+        </a>
+        <a href="{% url 'export_scheme_report_excel' %}?from_date={{ from_date|date:'Y-m-d' }}&to_date={{ to_date|date:'Y-m-d' }}" class="btn btn-success">
+            <i class="bi bi-file-excel"></i> Export Excel
+        </a>
+        <button onclick="window.print()" class="btn btn-primary">
+            <i class="bi bi-printer"></i> Print
+        </button>
+        <div class="dropdown">
+            <button class="btn btn-info dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="bi bi-share"></i> Share
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                    <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#emailModal">
+                        <i class="bi bi-envelope"></i> Send via Email
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="#" onclick="openWhatsApp()">
+                        <i class="bi bi-whatsapp"></i> Send via WhatsApp
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#smsModal">
+                        <i class="bi bi-phone"></i> Send via SMS
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-4" id="reportTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <a href="{% url 'reports' %}" class="nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">
+            <i class="bi bi-grid-3x3-gap"></i> Financial Summary
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a href="{% url 'scheme_reports' %}" class="nav-link {% if request.resolver_match.url_name == 'scheme_reports' %}active{% endif %}">
+            <i class="bi bi-building"></i> Scheme Performance
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a href="{% url 'expense_reports' %}" class="nav-link {% if request.resolver_match.url_name == 'expense_reports' %}active{% endif %}">
+            <i class="bi bi-wallet2"></i> Expense Report
+        </a>
+    </li>
+</ul>
+
+<div class="modal fade" id="emailModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-envelope"></i> Send Report via Email</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'send_scheme_report_email' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Recipient Email Address</label>
+                        <input type="email" name="email" class="form-control" placeholder="recipient@example.com" required>
+                    </div>
+                    <input type="hidden" name="from_date" value="{{ from_date|date:'Y-m-d' }}">
+                    <input type="hidden" name="to_date" value="{{ to_date|date:'Y-m-d' }}">
+                    <div class="alert alert-info">
+                        <small>The email will contain the complete scheme performance report.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-send"></i> Send Email</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="smsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-phone"></i> Send Report via SMS</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="get" action="{% url 'share_scheme_report' %}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Phone Number (with country code)</label>
+                        <input type="text" name="phone" class="form-control" placeholder="265991234567" required>
+                    </div>
+                    <input type="hidden" name="method" value="sms">
+                    <input type="hidden" name="from_date" value="{{ from_date|date:'Y-m-d' }}">
+                    <input type="hidden" name="to_date" value="{{ to_date|date:'Y-m-d' }}">
+                    <div class="alert alert-warning">
+                        <small>SMS is limited to 160 characters. Only summary will be sent.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-send"></i> Send SMS</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openWhatsApp() {
+    var phone = prompt("Enter phone number with country code (e.g., 265991234567):");
+    if (phone) {
+        phone = phone.trim().replace(/[\s\+\-]/g, '');
+        if (!phone.startsWith('265') && !phone.startsWith('0')) {
+            phone = '265' + phone;
+        }
+        if (phone.startsWith('0')) {
+            phone = '265' + phone.substring(1);
+        }
+        
+        var currencySymbol = "{{ user.userprofile.get_currency_symbol }}";
+        var message = `{{ user.userprofile.company_name|default:"Accounting System" }}
+
+SCHEME PERFORMANCE REPORT
+Period: {{ from_date|date:'Y-m-d' }} to {{ to_date|date:'Y-m-d' }}
+
+GRAND TOTAL:
+Total Invoiced: ${currencySymbol}{{ grand_total_invoiced }}
+Total Collected: ${currencySymbol}{{ grand_total_collected }}
+Balance to Collect: ${currencySymbol}{{ grand_total_balance }}
+
+Generated: {% now "Y-m-d H:i" %}`;
+        
+        var encodedMessage = encodeURIComponent(message);
+        var whatsappUrl = "https://wa.me/" + phone + "?text=" + encodedMessage;
+        window.open(whatsappUrl, '_blank');
+    }
+}
+</script>
+
+<style>
+@media print {
+    .nav-tabs, .btn, .card-header a, form, .main-sidebar, .modal, .d-flex.gap-2 { display: none !important; }
+    .main-content { margin: 0 !important; padding: 20px !important; }
+    .card { border: 1px solid #ddd !important; box-shadow: none !important; }
+}
+</style>
+
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h6 class="mb-0"><i class="bi bi-calendar-range"></i> Filter by Date Range</h6>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">From Date</label>
+                <input type="date" name="from_date" class="form-control" value="{{ from_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">To Date</label>
+                <input type="date" name="to_date" class="form-control" value="{{ to_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="bi bi-search"></i> Generate Report
+                </button>
+                <a href="{% url 'scheme_reports' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="alert alert-info mb-4">
+    <h5 class="mb-0">
+        <i class="bi bi-info-circle"></i> 
+        Report Period: <strong>{{ from_date|date:"Y-m-d" }}</strong> to <strong>{{ to_date|date:"Y-m-d" }}</strong>
+        | Total Households: <strong>{{ grand_total_households }}</strong>
+    </h5>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-primary">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Total Invoiced</h5>
+            </div>
+            <div class="card-body text-center">
+                <h2 class="text-white">{{ user.userprofile.get_currency_symbol }}{{ grand_total_invoiced|floatformat:2 }}</h2>
+                <small class="text-white-50">All Schemes Combined</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-success">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-cash-stack"></i> Total Collected</h5>
+            </div>
+            <div class="card-body text-center">
+                <h2 class="text-white">{{ user.userprofile.get_currency_symbol }}{{ grand_total_collected|floatformat:2 }}</h2>
+                <small class="text-white-50">Payments Received</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Balance to Collect</h5>
+            </div>
+            <div class="card-body text-center">
+                <h2 class="text-white">{{ user.userprofile.get_currency_symbol }}{{ grand_total_balance|floatformat:2 }}</h2>
+                <small class="text-white-50">Outstanding</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-graph-up"></i> Collection Rate: {{ collection_rate|floatformat:1 }}%</h5>
+    </div>
+    <div class="card-body">
+        <div class="progress" style="height: 30px;">
+            <div class="progress-bar bg-success" role="progressbar" style="width: {{ collection_rate|floatformat:0 }}%;" aria-valuenow="{{ collection_rate|floatformat:0 }}" aria-valuemin="0" aria-valuemax="100">
+                <strong class="text-white">{{ collection_rate|floatformat:1 }}% Collected</strong>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-grid-3x3-gap"></i> Scheme Performance Details</h5>
+    </div>
+    <div class="card-body">
+        <table class="table table-striped table-hover">
+            <thead class="table-primary">
+                <tr>
+                    <th class="text-white">Scheme</th>
+                    <th class="text-center text-white">Clients</th>
+                    <th class="text-center text-white">Households</th>
+                    <th class="text-end text-white">Total Invoiced</th>
+                    <th class="text-end text-white">Total Collected</th>
+                    <th class="text-end text-white">Balance</th>
+                    <th class="text-center text-white">Collection Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+{% for scheme in scheme_data %}
+                <tr>
+                    <td class="text-white"><strong>{{ scheme.name }}</strong></td>
+                    <td class="text-center text-white">{{ scheme.clients }}</td>
+                    <td class="text-center text-white">{{ scheme.households }}</td>
+                    <td class="text-end text-white"><strong>{{ user.userprofile.get_currency_symbol}}{{ scheme.total_invoiced|floatformat:2 }}</strong></td>
+                    <td class="text-end"><strong class="text-success">{{ user.userprofile.get_currency_symbol}}{{ scheme.total_collected|floatformat:2 }}</strong></td>
+                    <td class="text-end"><strong class="text-warning">{{ user.userprofile.get_currency_symbol}}{{ scheme.balance|floatformat:2 }}</strong></td>
+                    <td class="text-center">
+                        <div class="d-flex align-items-center justify-content-center">
+                            <div class="progress me-2" style="width: 80px; height: 20px;">
+                                <div class="progress-bar bg-{% if scheme.collection_rate >= 80 %}success{% elif scheme.collection_rate >= 50 %}warning{% else %}danger{% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ scheme.collection_rate|floatformat:0 }}%;" 
+                                     aria-valuenow="{{ scheme.collection_rate|floatformat:0 }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                </div>
+                            </div>
+                            <span class="badge bg-{% if scheme.collection_rate >= 80 %}success{% elif scheme.collection_rate >= 50 %}warning{% else %}danger{% endif %}">
+                                {{ scheme.collection_rate|floatformat:1 }}%
+                            </span>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-white-50">No scheme data found for the selected period</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="table-success">
+                <tr>
+                    <th class="text-white"><h5 class="mb-0">GRAND TOTAL</h5></th>
+                    <th class="text-center text-white"><h5 class="mb-0">{{ scheme_data|sum_clients }}</h5></th>
+                    <th class="text-center text-white"><h5 class="mb-0">{{ grand_total_households }}</h5></th>
+                    <th class="text-end text-white"><h5 class="mb-0">{{ user.userprofile.get_currency_symbol}}{{ grand_total_invoiced|floatformat:2 }}</h5></th>
+                    <th class="text-end text-white"><h5 class="mb-0">{{ user.userprofile.get_currency_symbol}}{{ grand_total_collected|floatformat:2 }}</h5></th>
+                    <th class="text-end text-white"><h5 class="mb-0">{{ user.userprofile.get_currency_symbol}}{{ grand_total_balance|floatformat:2 }}</h5></th>
+                    <th class="text-center text-white"><h5 class="mb-0">{{ collection_rate|floatformat:1 }}%</h5></th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<div class="row mt-4">
+    {% for scheme in scheme_data %}
+    <div class="col-md-6 mb-3">
+        <div class="card border-{% if scheme.collection_rate >= 80 %}success{% elif scheme.collection_rate >= 50 %}warning{% else %}danger{% endif %}">
+            <div class="card-header bg-{% if scheme.collection_rate >= 80 %}success{% elif scheme.collection_rate >= 50 %}warning{% else %}danger{% endif %} text-white">
+                <h5 class="mb-0"><i class="bi bi-building"></i> {{ scheme.name }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6">
+                        <p><strong>Clients:</strong> {{ scheme.clients }}</p>
+                        <p><strong>Households:</strong> {{ scheme.households }}</p>
+                    </div>
+                    <div class="col-6">
+                        <p class="mb-1"><strong>Invoiced:</strong></p>
+                        <h5 class="text-primary">{{ user.userprofile.get_currency_symbol }}{{ scheme.total_invoiced|floatformat:2 }}</h5>
+                        <p class="mb-1"><strong>Collected:</strong></p>
+                        <h5 class="text-success">{{ user.userprofile.get_currency_symbol }}{{ scheme.total_collected|floatformat:2 }}</h5>
+                        <p class="mb-1"><strong>Balance:</strong></p>
+                        <h5 class="text-warning">{{ user.userprofile.get_currency_symbol }}{{ scheme.balance|floatformat:2 }}</h5>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span><strong>Collection Rate:</strong></span>
+                        <span class="badge bg-{% if scheme.collection_rate >= 80 %}success{% elif scheme.collection_rate >= 50 %}warning{% else %}danger{% endif %}">{{ scheme.collection_rate|floatformat:1 }}%</span>
+                    </div>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar bg-{% if scheme.collection_rate >= 80 %}success{% elif scheme.collection_rate >= 50 %}warning{% else %}danger{% endif %}" 
+                             role="progressbar" 
+                             style="width: {{ scheme.collection_rate|floatformat:0 }}%;" 
+                             aria-valuenow="{{ scheme.collection_rate|floatformat:0 }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="mt-3">
+    <a href="{% url 'reports' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Main Reports
+    </a>
+</div>
+{% endblock %}

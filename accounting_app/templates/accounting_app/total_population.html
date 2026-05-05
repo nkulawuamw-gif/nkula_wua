@@ -1,0 +1,195 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Scheme Overall - Total Population{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="page-title page-title-{{ user.userprofile.title_animation|default:'gradient' }}"><i class="bi bi-people-fill"></i> Scheme Overall - Total Population</h2>
+        <div>
+            {% if user.userprofile.can_edit %}
+            <a href="{% url 'manage_schemes' %}" class="btn btn-outline-primary btn-sm me-2">
+                <i class="bi bi-gear"></i> Manage Schemes
+            </a>
+            <a href="{% url 'manage_villages' %}" class="btn btn-outline-secondary btn-sm me-2">
+                <i class="bi bi-geo-alt"></i> Manage Villages
+            </a>
+            {% if not scheme_data %}
+            <a href="{% url 'initialize_default_schemes' %}" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-circle"></i> Initialize Default Schemes
+            </a>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            {% if 'scheme' in message.message or 'village' in message.message or 'population' in message.message %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    {% if not scheme_data %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> No schemes found. Click "Initialize Default Schemes" to create the default schemes (Mangale, Nkala, Dodza, Milala) with sample villages, or go to "Manage Schemes" to add schemes manually.
+    </div>
+    {% else %}
+    
+    <form method="POST" action="{% url 'bulk_update_population' %}">
+        {% csrf_token %}
+        <input type="hidden" name="recorded_date" id="bulk_recorded_date" value="">
+        <input type="hidden" name="notes" id="bulk_notes" value="">
+        
+        {% for message in messages %}
+            {% if 'population' in message.message %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+        {% endfor %}
+        
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label for="recordDate" class="form-label">Record Date:</label>
+                <input type="date" class="form-control" id="recordDate" value="{{ today|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-4">
+                <label for="bulkNotes" class="form-label">Notes (optional):</label>
+                <input type="text" class="form-control" id="bulkNotes" placeholder="e.g., Census 2024">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-success w-100" onclick="setBulkFormData()">
+                    <i class="bi bi-save"></i> Save All Data
+                </button>
+            </div>
+        </div>
+
+        {% for scheme in scheme_data %}
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="bi bi-building"></i> {{ scheme.name }} Scheme
+                    </h4>
+                    <div class="d-flex gap-3">
+                        <span class="badge bg-warning text-dark fs-6">
+                            <i class="bi bi-house"></i> Households: {{ scheme.total_households }}
+                        </span>
+                        <span class="badge bg-light text-dark fs-6">
+                            <i class="bi bi-people-fill"></i> Population: {{ scheme.total_population }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if scheme.villages %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="5%">#</th>
+                                <th width="20%">Village Name</th>
+                                <th width="18%">Number of Households</th>
+                                <th width="18%">Population</th>
+                                <th width="20%">Last Updated</th>
+                                <th width="19%">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for village in scheme.villages %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>
+                                    <strong>{{ village.name }}</strong>
+                                </td>
+                                <td>
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" 
+                                               name="household_{{ village.id }}" 
+                                               class="form-control" 
+                                               value="{{ village.household_count }}"
+                                               min="0"
+                                               placeholder="0">
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" 
+                                               name="population_{{ village.id }}" 
+                                               class="form-control" 
+                                               value="{{ village.population }}"
+                                               min="0"
+                                               placeholder="0">
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if village.last_updated %}
+                                        <small class="text-muted">{{ village.last_updated|date:"M d, Y" }}</small>
+                                    {% else %}
+                                        <small class="text-muted">Not recorded</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form method="POST" action="{% url 'update_village_population' village.id %}" style="display:inline;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="household_count" value="{{ village.household_count }}">
+                                        <input type="hidden" name="population" value="{{ village.population }}">
+                                        <input type="hidden" name="recorded_date" value="{{ today|date:'Y-m-d' }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary" title="Save this village">
+                                            <i class="bi bi-save"></i> Save
+                                        </button>
+                                    </form>
+                                    <a href="{% url 'village_edit' village.id %}" class="btn btn-sm btn-outline-secondary" title="Edit village details">
+                                        <i class="bi bi-pencil"></i> Edit
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-primary">
+                            <tr>
+                                <td colspan="2" class="text-end"><strong>Scheme Total:</strong></td>
+                                <td><strong>{{ scheme.total_households }} households</strong></td>
+                                <td><strong>{{ scheme.total_population }} people</strong></td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-warning mb-0">
+                    <i class="bi bi-exclamation-triangle"></i> No villages found for this scheme. 
+                    <a href="{% url 'village_create' %}">Add a village</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if grand_total > 0 or grand_households > 0 %}
+        <div class="card bg-success text-white mb-4">
+            <div class="card-body text-center">
+                <h3 class="mb-0">
+                    <i class="bi bi-globe"></i> Grand Total: {{ grand_households }} Households | {{ grand_total }} People
+                </h3>
+            </div>
+        </div>
+        {% endif %}
+    </form>
+    
+    <script>
+        function setBulkFormData() {
+            var recordDate = document.getElementById('recordDate').value;
+            var bulkNotes = document.getElementById('bulkNotes').value;
+            document.getElementById('bulk_recorded_date').value = recordDate;
+            document.getElementById('bulk_notes').value = bulkNotes;
+        }
+    </script>
+    {% endif %}
+</div>
+{% endblock %}

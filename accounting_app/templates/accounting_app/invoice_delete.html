@@ -1,0 +1,99 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Delete Invoice{% endblock %}
+
+{% block content %}
+{% load custom_filters %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>Delete Invoice</h4>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-danger text-white">
+        <h6 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Confirm Deletion</h6>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h5><i class="bi bi-exclamation-octagon"></i> Warning: This action cannot be undone!</h5>
+            <p class="mb-0">Deleting this invoice will permanently remove it from the system. The client's outstanding balance will be recalculated.</p>
+        </div>
+        
+        <table class="table table-bordered">
+            <tbody>
+                <tr>
+                    <th style="width: 30%; background-color: #f8f9fa;">Invoice Number</th>
+                    <td><strong class="text-danger">{{ invoice.invoice_number }}</strong></td>
+                </tr>
+                <tr>
+                    <th style="background-color: #f8f9fa;">Client</th>
+                    <td>{{ invoice.client.name }}</td>
+                </tr>
+                <tr>
+                    <th style="background-color: #f8f9fa;">Issue Date</th>
+                    <td>{{ invoice.issue_date|date:"Y-m-d" }}</td>
+                </tr>
+                <tr>
+                    <th style="background-color: #f8f9fa;">Due Date</th>
+                    <td>{{ invoice.due_date|date:"Y-m-d" }}</td>
+                </tr>
+                <tr>
+                    <th style="background-color: #f8f9fa;">Households</th>
+                    <td>{{ invoice.household_count }}</td>
+                </tr>
+                <tr>
+                    <th style="background-color: #f8f9fa;">Cost Per Unit</th>
+                    <td>{{ user.userprofile.get_currency_symbol }}{{ invoice.cost_per_unit|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <th style="background-color: #f8f9fa;">Tax Amount</th>
+                    <td>{{ user.userprofile.get_currency_symbol }}{{ invoice.tax_amount|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <th style="background-color: #f8f9fa;">Discount</th>
+                    <td>{{ user.userprofile.get_currency_symbol }}{{ invoice.discount|default:0|floatformat:2 }}</td>
+                </tr>
+                <tr class="table-success">
+                    <th style="background-color: #d4edda; font-weight: bold;">Total Amount</th>
+                    <td><strong class="text-success">{{ user.userprofile.get_currency_symbol }}{{ invoice.total_amount|floatformat:2 }}</strong></td>
+                </tr>
+                <tr>
+                    <th style="background-color: #f8f9fa;">Payment Status</th>
+                    <td>
+                        {% if invoice.is_fully_paid %}
+                        <span class="badge bg-success">
+                            <i class="bi bi-check-circle"></i> PAID - {{ user.userprofile.get_currency_symbol }}{{ invoice.amount_paid|floatformat:2 }}
+                        </span>
+                        {% else %}
+                        <span class="badge bg-danger">
+                            <i class="bi bi-x-circle"></i> NOT PAID - {{ user.userprofile.get_currency_symbol }}{{ invoice.amount_due|floatformat:2 }} outstanding
+                        </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th style="background-color: #f8f9fa;">Invoice Status</th>
+                    <td>
+                        <span class="badge bg-{% if invoice.status == 'paid' %}success{% elif invoice.status == 'overdue' %}danger{% elif invoice.status == 'partial' %}warning{% elif invoice.status == 'sent' %}info{% elif invoice.status == 'cancelled' %}secondary{% else %}light text-dark{% endif %}">
+                            {{ invoice.status|title }}
+                        </span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="mt-4">
+                <button type="submit" class="btn btn-danger btn-lg">
+                    <i class="bi bi-trash"></i> Yes, Delete Invoice
+                </button>
+                <a href="{% url 'invoice_list' %}" class="btn btn-secondary btn-lg ms-2">
+                    <i class="bi bi-x-circle"></i> Cancel
+                </a>
+                <a href="{% url 'invoice_edit' invoice.pk %}" class="btn btn-primary btn-lg ms-2">
+                    <i class="bi bi-pencil"></i> Edit Instead
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

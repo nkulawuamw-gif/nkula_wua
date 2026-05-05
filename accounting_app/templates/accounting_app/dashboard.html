@@ -1,0 +1,676 @@
+{% extends "accounting_app/base.html" %}
+{% load custom_filters %}
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .hover-card {
+        transition: transform 0.3s, box-shadow 0.3s;
+        cursor: pointer;
+    }
+    .hover-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    }
+    .text-decoration-none:hover {
+        color: inherit;
+    }
+    .notification-badge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: #dc3545;
+        color: white;
+        border-radius: 50%;
+        padding: 2px 6px;
+        font-size: 11px;
+        font-weight: bold;
+    }
+    .nav-link-with-badge {
+        position: relative;
+    }
+    .ticker-wrap {
+        overflow: hidden;
+        background: linear-gradient(90deg, #0d6efd, #1a1a2e);
+        padding: 10px 0;
+        margin-bottom: 20px;
+        border-radius: 8px;
+    }
+    .ticker {
+        display: flex;
+        white-space: nowrap;
+        animation: ticker 60s linear infinite;
+    }
+    .ticker-item {
+        display: inline-flex;
+        align-items: center;
+        padding: 0 50px;
+        color: white;
+        font-size: 14px;
+        font-weight: bold;
+    }
+    .ticker-item i {
+        margin-right: 8px;
+        font-size: 16px;
+    }
+    @keyframes ticker {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+    }
+    
+    /* Lightweight Continuous Title Animation */
+    .dashboard-title {
+        position: relative;
+        display: inline-block;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+    }
+    
+    .dashboard-title:hover {
+        color: #00d4ff;
+    }
+    
+    /* None - No animation */
+    .title-anim-none {
+        /* No animation */
+    }
+    
+    /* Underline Animation */
+    .title-anim-underline {
+        position: relative;
+    }
+    
+    .title-anim-underline::after {
+        content: "";
+        position: absolute;
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(90deg, #00d4ff, #00ff88);
+        left: 0;
+        bottom: -5px;
+        animation: lineGlow 2s ease-in-out infinite;
+    }
+    
+    /* Logo Effect Animation */
+    .title-anim-logo {
+        transition: transform 0.3s ease, color 0.3s ease;
+    }
+    
+    .title-anim-logo:hover {
+        transform: scale(1.05);
+        color: #00d4ff;
+    }
+    
+    /* Fade In Animation */
+    .title-anim-fade {
+        animation: fadeIn 0.5s ease-in forwards;
+    }
+    
+    @keyframes fadeIn {
+        to { opacity: 1; }
+    }
+    
+    /* Fade Slide Animation */
+    .title-anim-fadeslide {
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeSlide 0.6s ease-out forwards;
+    }
+    
+    @keyframes fadeSlide {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Gradient Animation */
+    .title-anim-gradient {
+        background: linear-gradient(90deg, #00d4ff, #00ff88, #00d4ff);
+        background-size: 200% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        animation: gradientFlow 3s linear infinite;
+    }
+    
+    @keyframes gradientFlow {
+        0% { background-position: 0% 50%; }
+        100% { background-position: 200% 50%; }
+    }
+    
+    @keyframes lineGlow {
+        0%, 100% { opacity: 0.5; transform: scaleX(0.95); }
+        50% { opacity: 1; transform: scaleX(1); }
+    }
+    
+    /* Pulse Animation */
+    .title-anim-pulse {
+        animation: titlePulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes titlePulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.02); }
+    }
+    
+    /* Animation Classes */
+    .underline-animate {
+        position: relative;
+    }
+    
+    .underline-animate::after {
+        content: "";
+        position: absolute;
+        width: 0;
+        height: 2px;
+        background: #0ea5e9;
+        left: 0;
+        bottom: -5px;
+        transition: width 0.3s ease;
+    }
+    
+    .underline-animate:hover::after {
+        width: 100%;
+    }
+    
+    .logo-text {
+        transition: transform 0.3s ease, color 0.3s ease;
+    }
+    
+    .logo-text:hover {
+        transform: scale(1.05);
+        color: #0ea5e9;
+    }
+    
+    .fade-in {
+        opacity: 0;
+        animation: fadeIn 0.5s ease-in forwards;
+    }
+    
+    .fade-slide {
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeSlide 0.6s ease-out forwards;
+    }
+    
+    @keyframes fadeIn {
+        to { opacity: 1; }
+    }
+    
+    @keyframes fadeSlide {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Selected Animation Based on User Preference */
+    .title-anim-none {
+        /* No animation */
+    }
+    
+    .title-anim-underline {
+        position: relative;
+        display: inline-block;
+    }
+    
+    .title-anim-underline::after {
+        content: "";
+        position: absolute;
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(90deg, #00d4ff, #00ff88);
+        left: 0;
+        bottom: -5px;
+        animation: lineGlow 2s ease-in-out infinite;
+    }
+    
+    .title-anim-logo {
+        transition: transform 0.3s ease, color 0.3s ease;
+    }
+    
+    .title-anim-logo:hover {
+        transform: scale(1.05);
+    }
+    
+    .title-anim-fade {
+        animation: fadeIn 0.5s ease-in forwards;
+    }
+    
+    .title-anim-fadeslide {
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeSlide 0.6s ease-out forwards;
+    }
+    
+    .title-anim-gradient {
+        background: linear-gradient(90deg, #00d4ff, #00ff88, #00d4ff);
+        background-size: 200% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        animation: gradientFlow 3s linear infinite;
+    }
+    
+    @keyframes gradientFlow {
+        0% { background-position: 0% 50%; }
+        100% { background-position: 200% 50%; }
+    }
+    
+    @keyframes lineGlow {
+        0%, 100% { opacity: 0.5; transform: scaleX(0.95); }
+        50% { opacity: 1; transform: scaleX(1); }
+    }
+    
+    .title-anim-pulse {
+        animation: titlePulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes titlePulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.02); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <div>
+            <h2 class="mb-0 dashboard-title title-anim-{% if user.userprofile %}{{ user.userprofile.title_animation|default:'gradient' }}{% else %}none{% endif %}">
+                {% if user.userprofile and user.userprofile.company_name %}{{ user.userprofile.company_name }}{% else %}NKULA WATER USERS ASSOCIATION{% endif %}
+            </h2>
+            <small class="text-muted">Accounting Dashboard</small>
+        </div>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+        <small class="text-muted">{% now "Y-m-d H:i" %}</small>
+        <a href="{% url 'settings' %}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-gear"></i> Settings
+        </a>
+    </div>
+</div>
+
+<div class="ticker-wrap">
+    <div class="ticker">
+        <div class="ticker-item"><i class="bi bi-cash-coin"></i> Total Collections: K {{ total_collections|default:"0.00" }}</div>
+        <div class="ticker-item"><i class="bi bi-exclamation-triangle"></i> Total Overdue: K {{ total_overdue|default:"0.00" }}</div>
+        <div class="ticker-item"><i class="bi bi-people"></i> Total Beneficiaries: {{ total_beneficiaries|default:"0" }}</div>
+        <div class="ticker-item"><i class="bi bi-receipt"></i> Pending Invoices: {{ pending_invoices|default:"0" }}</div>
+        <div class="ticker-item"><i class="bi bi-wallet2"></i> Available Balance: K {{ available_balance|default:"0.00" }}</div>
+        <div class="ticker-item"><i class="bi bi-cash-coin"></i> Total Collections: K {{ total_collections|default:"0.00" }}</div>
+        <div class="ticker-item"><i class="bi bi-exclamation-triangle"></i> Total Overdue: K {{ total_overdue|default:"0.00" }}</div>
+        <div class="ticker-item"><i class="bi bi-people"></i> Total Beneficiaries: {{ total_beneficiaries|default:"0" }}</div>
+        <div class="ticker-item"><i class="bi bi-receipt"></i> Pending Invoices: {{ pending_invoices|default:"0" }}</div>
+        <div class="ticker-item"><i class="bi bi-wallet2"></i> Available Balance: K {{ available_balance|default:"0.00" }}</div>
+    </div>
+</div>
+
+<div class="card mb-4 border-warning">
+    <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-arrow-right-circle"></i> Balance Before (Opening Balance) - FY {{ current_fiscal_year }}</h5>
+        <div>
+            <a href="{% url 'opening_balance_list' %}" class="btn btn-sm btn-dark">
+                <i class="bi bi-list"></i> View All Balances
+            </a>
+            <a href="{% url 'year_end_rollover' %}" class="btn btn-sm btn-dark">
+                <i class="bi bi-calendar-check"></i> Year-End Rollover
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row text-center">
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <h6 class="text-muted">Opening Balance (B/F)</h6>
+                    <h4 class="text-warning mb-0">{{ user|currency_symbol }}{{ total_opening_balance|floatformat:2 }}</h4>
+                    <small class="text-muted">{{ beneficiaries_with_opening }} beneficiaries with opening balance</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <h6 class="text-muted">Outstanding This Year</h6>
+                    <h4 class="text-danger mb-0">{{ user|currency_symbol }}{{ total_current_outstanding|floatformat:2 }}</h4>
+                    <small class="text-muted">Current year invoices</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 bg-warning rounded">
+                    <h6 class="text-dark">Total Balance</h6>
+                    <h4 class="text-dark mb-0">{{ user|currency_symbol }}{{ total_balance_with_opening|floatformat:2 }}</h4>
+                    <small class="text-dark">Opening + Outstanding</small>
+                </div>
+            </div>
+        </div>
+        {% if last_rollover %}
+        <div class="mt-3 text-center">
+            <small class="text-muted">
+                <i class="bi bi-info-circle"></i> Last rollover: FY {{ last_rollover.fiscal_year }} on {{ last_rollover.rollover_date }}
+            </small>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Invoiced</h6>
+                        <h4>{{ user.userprofile.currency_symbol|default:"K" }}{{ total_invoiced|floatformat:2 }}</h4>
+                    </div>
+                    <i class="bi bi-file-earmark-text fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Revenue</h6>
+                        <h4>{{ user.userprofile.currency_symbol|default:"K" }}{{ total_revenue|floatformat:2 }}</h4>
+                    </div>
+                    <i class="bi bi-graph-up-arrow fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Expenses</h6>
+                        <h4>{{ user.userprofile.currency_symbol|default:"K" }}{{ total_expenses|floatformat:2 }}</h4>
+                    </div>
+                    <i class="bi bi-wallet2 fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Net Profit</h6>
+                        <h4>{{ user.userprofile.currency_symbol|default:"K" }}{{ net_profit|floatformat:2 }}</h4>
+                    </div>
+                    <i class="bi bi-cash-stack fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Outstanding</h6>
+                        <h4>{{ user.userprofile.currency_symbol|default:"K" }}{{ outstanding|floatformat:2 }}</h4>
+                        <small>Inv - Rev</small>
+                    </div>
+                    <i class="bi bi-clock-history fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <a href="{% url 'overdue_accounts' %}" class="text-decoration-none">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Overdue</h6>
+                            <h4>{{ overdue_accounts.count }}</h4>
+                            <small>Accounts</small>
+                        </div>
+                        <i class="bi bi-exclamation-triangle fs-1 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center" style="cursor: pointer;" onclick="toggleSchemeViews()">
+                <h5 class="mb-0"><i class="bi bi-people"></i> Beneficiary & Household Statistics</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-light text-dark">Total Beneficiaries: {{ total_beneficiaries }}</span>
+                    <i class="bi bi-chevron-down" id="schemeToggleIcon"></i>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row text-center mb-4">
+                    <div class="col mb-3">
+                        <div class="p-3 bg-light rounded border">
+                            <h4 class="text-dark mb-0">{{ total_households }}</h4>
+                            <small class="text-muted">Total Taps</small>
+                        </div>
+                    </div>
+                    <div class="col mb-3">
+                        <div class="p-3 bg-light rounded border">
+                            <h4 class="text-success mb-0">{{ total_private_households }}</h4>
+                            <small class="text-muted">Total Private Taps</small>
+                        </div>
+                    </div>
+                    <div class="col mb-3">
+                        <div class="p-3 bg-light rounded border">
+                            <h4 class="text-warning mb-0">{{ total_communal_households }}</h4>
+                            <small class="text-muted">Total Communal Taps</small>
+                        </div>
+                    </div>
+                    <div class="col mb-3">
+                        <div class="p-3 bg-light rounded border">
+                            <h4 class="text-info mb-0">{{ private_beneficiaries }}</h4>
+                            <small class="text-muted">Total Private Beneficiaries</small>
+                        </div>
+                    </div>
+                    <div class="col mb-3">
+                        <div class="p-3 bg-light rounded border">
+                            <h4 class="text-secondary mb-0">{{ communal_beneficiaries }}</h4>
+                            <small class="text-muted">Total Communal Beneficiaries</small>
+                        </div>
+                    </div>
+                    <div class="col mb-3">
+                        <div class="p-3 bg-light rounded border">
+                            <h4 class="text-primary mb-0">{{ total_beneficiaries }}</h4>
+                            <small class="text-muted">Total Beneficiaries</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="accordion" id="schemeAccordion" style="display: none;">
+                    {% for scheme in scheme_data %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#scheme{{ forloop.counter }}">
+                                <div class="d-flex justify-content-between w-100 me-3">
+                                    <span><i class="bi bi-geo-alt"></i> <strong>{{ scheme.name }}</strong></span>
+                                    <span>Total Beneficiaries: {{ scheme.total_beneficiaries }} | Total Households: {{ scheme.total_households }}</span>
+                                </div>
+                            </button>
+                        </h2>
+                        <div id="scheme{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" data-bs-parent="#schemeAccordion">
+                            <div class="accordion-body">
+                                <div class="row text-center">
+                                    <div class="col mb-3">
+                                        <div class="p-3 bg-light rounded border">
+                                            <h4 class="text-dark mb-0">{{ scheme.total_households }}</h4>
+                                            <small class="text-muted">Total Taps</small>
+                                        </div>
+                                    </div>
+                                    <div class="col mb-3">
+                                        <div class="p-3 bg-light rounded border">
+                                            <h4 class="text-success mb-0">{{ scheme.private_households }}</h4>
+                                            <small class="text-muted">Total Private Taps</small>
+                                        </div>
+                                    </div>
+                                    <div class="col mb-3">
+                                        <div class="p-3 bg-light rounded border">
+                                            <h4 class="text-warning mb-0">{{ scheme.communal_households }}</h4>
+                                            <small class="text-muted">Total Communal Taps</small>
+                                        </div>
+                                    </div>
+                                    <div class="col mb-3">
+                                        <div class="p-3 bg-light rounded border">
+                                            <h4 class="text-info mb-0">{{ scheme.private_clients }}</h4>
+                                            <small class="text-muted">Total Private Beneficiaries</small>
+                                        </div>
+                                    </div>
+                                    <div class="col mb-3">
+                                        <div class="p-3 bg-light rounded border">
+                                            <h4 class="text-secondary mb-0">{{ scheme.communal_clients }}</h4>
+                                            <small class="text-muted">Total Communal Beneficiaries</small>
+                                        </div>
+                                    </div>
+                                    <div class="col mb-3">
+                                        <div class="p-3 bg-light rounded border">
+                                            <h4 class="text-primary mb-0">{{ scheme.total_clients }}</h4>
+                                            <small class="text-muted">Total Beneficiaries</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleSchemeViews() {
+    const accordion = document.getElementById('schemeAccordion');
+    const icon = document.getElementById('schemeToggleIcon');
+    if (accordion.style.display === 'none') {
+        accordion.style.display = 'block';
+        icon.classList.remove('bi-chevron-down');
+        icon.classList.add('bi-chevron-up');
+    } else {
+        accordion.style.display = 'none';
+        icon.classList.remove('bi-chevron-up');
+        icon.classList.add('bi-chevron-down');
+    }
+}
+</script>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card border-primary">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-building"></i> Scheme Performance Summary</h5>
+                <small>Total Invoiced | Total Collected | Balance to Collect</small>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4 col-12 mb-3">
+                        <a href="{% url 'scheme_reports' %}" class="text-decoration-none">
+                            <div class="p-4 bg-primary text-white rounded hover-card">
+                                <h1 class="mb-0">{{ user|currency_symbol }}{{ scheme_total_invoiced|default:"0"|floatformat:0 }}</h1>
+                                <h5>Total Invoiced (All Schemes)</h5>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-4 col-12 mb-3">
+                        <a href="{% url 'scheme_reports' %}" class="text-decoration-none">
+                            <div class="p-4 bg-success text-white rounded hover-card">
+                                <h1 class="mb-0">{{ user|currency_symbol }}{{ scheme_total_collected|default:"0"|floatformat:0 }}</h1>
+                                <h5>Total Collected</h5>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-4 col-12 mb-3">
+                        <a href="{% url 'scheme_reports' %}" class="text-decoration-none">
+                            <div class="p-4 bg-warning text-dark rounded hover-card">
+                                <h1 class="mb-0">{{ user|currency_symbol }}{{ scheme_total_balance|default:"0"|floatformat:0 }}</h1>
+                                <h5>Balance to Collect</h5>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">Recent Invoices</h6>
+                <a href="{% url 'invoice_list' %}" class="btn btn-sm btn-primary">View All</a>
+            </div>
+            <div class="card-body">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Invoice #</th>
+                            <th>Beneficiary</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for invoice in recent_invoices %}
+                        <tr class="{% if invoice.status == 'overdue' %}table-danger{% endif %}">
+                            <td><a href="{% url 'invoice_edit' invoice.pk %}">{{ invoice.invoice_number }}</a></td>
+                            <td>
+                                <a href="{% url 'beneficiary_detail' invoice.beneficiary.pk %}" class="{% if invoice.status == 'overdue' %}text-danger fw-bold{% endif %}">
+                                    {% if invoice.status == 'overdue' %}<i class="bi bi-exclamation-triangle-fill"></i> {% endif %}{{ invoice.beneficiary.name }}
+                                </a>
+                            </td>
+                            <td>{{ user|currency_symbol }}{{ invoice.total_amount|floatformat:2 }}</td>
+                            <td><span class="status-badge status-{{ invoice.status }}">{{ invoice.status|title }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted">No invoices yet</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">Recent Expenses</h6>
+                <a href="{% url 'expense_list' %}" class="btn btn-sm btn-primary">View All</a>
+            </div>
+            <div class="card-body">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Ref #</th>
+                            <th>Vendor</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for expense in recent_expenses %}
+                        <tr>
+                            <td><a href="{% url 'expense_edit' expense.pk %}">{{ expense.expense_number }}</a></td>
+                            <td>{{ expense.vendor.name }}</td>
+                            <td>{{ user|currency_symbol }}{{ expense.amount|floatformat:2 }}</td>
+                            <td>{% if expense.is_paid %}<span class="status-badge status-paid">Paid</span>{% else %}<span class="status-badge status-draft">Pending</span>{% endif %}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted">No expenses yet</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

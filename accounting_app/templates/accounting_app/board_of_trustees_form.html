@@ -1,0 +1,75 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}{{ action }} Board of Trustees Member{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-person-plus"></i> {{ action }} Board of Trustees Member</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Name of Member *</label>
+                            <input type="text" name="name" class="form-control" required value="{{ form.name.value|default:'' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Sex *</label>
+                            <select name="sex" class="form-select" required>
+                                <option value="">-- Select Sex --</option>
+                                <option value="M" {% if form.sex.value == 'M' %}selected{% endif %}>Male</option>
+                                <option value="F" {% if form.sex.value == 'F' %}selected{% endif %}>Female</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Village *</label>
+                            <input type="text" name="village" class="form-control" required value="{{ form.village.value|default:'' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Scheme Present *</label>
+                            <select name="scheme_present" class="form-select" required>
+                                <option value="">-- Select Scheme --</option>
+                                <option value="Mangale" {% if form.scheme_present.value == 'Mangale' %}selected{% endif %}>Mangale</option>
+                                <option value="Dodza" {% if form.scheme_present.value == 'Dodza' %}selected{% endif %}>Dodza</option>
+                                <option value="Nkala" {% if form.scheme_present.value == 'Nkala' %}selected{% endif %}>Nkala</option>
+                                <option value="Milala" {% if form.scheme_present.value == 'Milala' %}selected{% endif %}>Milala</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Title/Position</label>
+                            <select name="title" class="form-select">
+                                <option value="">-- Select Title --</option>
+                                <option value="Chairperson" {% if form.title.value == 'Chairperson' %}selected{% endif %}>Chairperson</option>
+                                <option value="Vice Chairperson" {% if form.title.value == 'Vice Chairperson' %}selected{% endif %}>Vice Chairperson</option>
+                                <option value="Secretary" {% if form.title.value == 'Secretary' %}selected{% endif %}>Secretary</option>
+                                <option value="Vice Secretary" {% if form.title.value == 'Vice Secretary' %}selected{% endif %}>Vice Secretary</option>
+                                <option value="Treasurer" {% if form.title.value == 'Treasurer' %}selected{% endif %}>Treasurer</option>
+                                <option value="Member" {% if form.title.value == 'Member' %}selected{% endif %}>Member</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Contact</label>
+                            <input type="text" name="contact" class="form-control" placeholder="e.g. +265991234567" value="{{ form.contact.value|default:'' }}">
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> {{ action }}
+                        </button>
+                        <a href="{% url 'board_of_trustees_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+name = "nkula-wua-accounting"
+type = "web"
+
+# Python version
+[python]
+version = "3.10"
+
+# The command to run the application
+# Using Gunicorn WSGI server (recommended for production)
+command = ["gunicorn", "accounting_project.wsgi:application"]
+
+# Number of workers
+[python.workers]
+type = "static"
+count = 2
+
+# Environment variables
+[python.env]
+DJANGO_SETTINGS_MODULE = "accounting_project.settings"
+DEBUG = "False"
+SECRET_KEY = "your-very-secret-key-change-this"
+ALLOWED_HOSTS = "nkula-wua-accounting.wesphere.app,localhost,127.0.0.1"
+
+# Database configuration
+# For SQLite (simple, good for starting):
+[python.env.DATABASE_URL]
+value = "sqlite:///db.sqlite3"
+
+# For PostgreSQL (recommended for production), uncomment below:
+# [python.env.DATABASE_URL]
+# value = "postgres://user:password@localhost:5432/dbname"
+
+# Static files
+[python.static]
+directory = "staticfiles"
+
+# Media files (user uploads)
+[python.media]
+directory = "media"
+
+# Build commands
+[build]
+command = "pip install -r requirements.txt && python manage.py collectstatic --noinput"
+
+# Additional packages
+[python.packages]
+# Uncomment for PostgreSQL support:
+# "psycopg2-binary" = ""
+# For production WSGI server:
+"gunicorn" = ""

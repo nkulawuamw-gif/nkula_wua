@@ -1,0 +1,187 @@
+{% extends "accounting_app/base.html" %}
+{% load custom_filters %}
+{% block title %}Pension Calculator{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center">
+        <div>
+            <h4 class="mb-0">Pension Calculator</h4>
+            <small class="text-muted">Calculate employee pension based on salary history</small>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'pension_report' %}" class="btn btn-info">
+            <i class="bi bi-file-earmark-bar-chart"></i> View All Pensions
+        </a>
+        <a href="{% url 'employee_list' %}" class="btn btn-secondary">
+            <i class="bi bi-people"></i> Employees
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-person-plus"></i> Select Employee</h5>
+            </div>
+            <div class="card-body">
+                <form method="get" action="{% url 'pension_calculator' %}">
+                    <div class="mb-3">
+                        <label class="form-label">Choose Employee</label>
+                        <select name="employee_id" class="form-select" onchange="this.form.submit()">
+                            <option value="">-- Select Employee --</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp.pk }}" {% if selected_employee and selected_employee.pk == emp.pk %}selected{% endif %}>
+                                {{ emp.name }} - {{ emp.position|default:"No Position" }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        {% if selected_employee %}
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-person-badge"></i> Employee Details</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <td><strong>Name:</strong></td>
+                        <td>{{ selected_employee.name }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Position:</strong></td>
+                        <td>{{ selected_employee.position|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Employee Type:</strong></td>
+                        <td>{{ selected_employee.get_employee_type_display }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Starting Date:</strong></td>
+                        <td>{{ selected_employee.date_recruited|date:"Y-m-d"|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Current Salary:</strong></td>
+                        <td>{{ user.userprofile.get_currency_symbol }}{{ selected_employee.salary|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Status:</strong></td>
+                        <td>
+                            {% if selected_employee.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+                <hr>
+                <a href="{% url 'employee_salary_history' selected_employee.pk %}" class="btn btn-warning btn-sm w-100">
+                    <i class="bi bi-clock-history"></i> Manage Salary History
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-8">
+        {% if selected_employee %}
+        {% if salary_breakdown %}
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted">Total Salary Paid</h6>
+                        <h4>{{ user.userprofile.get_currency_symbol }}{{ total_salary|floatformat:2 }}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-warning">
+                    <div class="card-body text-center">
+                        <h6 class="text-dark">Total Pension Due</h6>
+                        <h4>{{ user.userprofile.get_currency_symbol }}{{ total_pension|floatformat:2 }}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h6 class="text-white-50">Periods</h6>
+                        <h4>{{ salary_breakdown|length }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-table"></i> Salary Period Breakdown</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Period</th>
+                                <th class="text-end">Monthly Salary</th>
+                                <th class="text-end">Days</th>
+                                <th class="text-end">Daily</th>
+                                <th class="text-end">Total Earned</th>
+                                <th class="text-end">Pension (10%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in salary_breakdown %}
+                            <tr>
+                                <td>{{ item.salary.start_date|date:"Y-m-d" }} to {{ item.salary.end_date|date:"Y-m-d"|default:"Present" }}</td>
+                                <td class="text-end">{{ user.userprofile.get_currency_symbol }}{{ item.salary.salary|floatformat:2 }}</td>
+                                <td class="text-end">{{ item.days }}</td>
+                                <td class="text-end">{{ user.userprofile.get_currency_symbol }}{{ item.daily|floatformat:2 }}</td>
+                                <td class="text-end">{{ user.userprofile.get_currency_symbol }}{{ item.total_earned|floatformat:2 }}</td>
+                                <td class="text-end"><strong>{{ user.userprofile.get_currency_symbol }}{{ item.pension|floatformat:2 }}</strong></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-success">
+                            <tr>
+                                <th colspan="4" class="text-end">GRAND TOTAL:</th>
+                                <th class="text-end">{{ user.userprofile.get_currency_symbol }}{{ total_salary|floatformat:2 }}</th>
+                                <th class="text-end">{{ user.userprofile.get_currency_symbol }}{{ total_pension|floatformat:2 }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-clock-history text-muted" style="font-size: 4rem;"></i>
+                <h4 class="mt-3">No Salary History</h4>
+                <p class="text-muted">Add salary periods to calculate pension based on actual salary earned over time.</p>
+                <a href="{% url 'employee_salary_history' selected_employee.pk %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Add Salary Periods
+                </a>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-calculator text-muted" style="font-size: 4rem;"></i>
+                <h4 class="mt-3">Select an Employee</h4>
+                <p class="text-muted">Choose an employee to view their pension calculation based on salary history.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

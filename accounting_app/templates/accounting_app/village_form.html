@@ -1,0 +1,68 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}{{ action }} Village{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="page-title page-title-{{ user.userprofile.title_animation|default:'gradient' }}"><i class="bi bi-geo-alt"></i> {{ action }} Village</h2>
+        <a href="{% url 'manage_villages' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="POST">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label for="id_scheme" class="form-label">Scheme *</label>
+                    {{ form.scheme }}
+                    {% if form.scheme.errors %}
+                    <div class="text-danger">{{ form.scheme.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_name" class="form-label">Village Name *</label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                    <div class="text-danger">{{ form.name.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_household_count" class="form-label">Number of Households</label>
+                    {{ form.household_count }}
+                    {% if form.household_count.errors %}
+                    <div class="text-danger">{{ form.household_count.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_description" class="form-label">Description (Optional)</label>
+                    {{ form.description }}
+                    {% if form.description.errors %}
+                    <div class="text-danger">{{ form.description.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <div class="form-check">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="id_is_active">
+                            Active
+                        </label>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> {{ action }} Village
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

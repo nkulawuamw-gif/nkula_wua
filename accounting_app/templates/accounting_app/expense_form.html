@@ -1,0 +1,420 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}{{ action }} Expense{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>{{ action }} Expense</h4>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post" enctype="multipart/form-data" id="expenseForm">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in form.non_field_errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+            
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Expense Number</label>
+                    <input type="text" class="form-control bg-light" value="{{ expense_number|default:'Auto-generated' }}" readonly>
+                    <small class="text-muted">Auto-generated</small>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Vendor (Optional)</label>
+                    <select name="vendor" class="form-select">
+                        <option value="">-- Select Vendor --</option>
+                        {% for vendor in vendors %}
+                            <option value="{{ vendor.id }}" {% if form.vendor.value == vendor.id %}selected{% endif %}>{{ vendor.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Expense Date *</label>
+                    <input type="date" name="expense_date" value="{{ form.expense_date.value|date:'Y-m-d'|default:today|date:'Y-m-d' }}" class="form-control" required>
+                    {% if form.expense_date.errors %}
+                        <small class="text-danger">{{ form.expense_date.errors.0 }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">General Description (Optional)</label>
+                <textarea name="description" rows="2" class="form-control" placeholder="Overall description for this expense batch...">{{ form.description.value|default:'' }}</textarea>
+                {% if form.description.errors %}
+                    <small class="text-danger">{{ form.description.errors.0 }}</small>
+                {% endif %}
+            </div>
+            
+            <hr>
+            <h5 class="mb-3"><i class="bi bi-list-ul"></i> Expense Items</h5>
+            
+            <div id="expenseItemsContainer">
+                {% if expense_items %}
+                    {% for item in expense_items %}
+                        <div class="row expense-item mb-3 p-3 border rounded bg-light" data-item-id="{{ item.id }}" id="item-{{ forloop.counter }}">
+                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                            <div class="col-md-2">
+                                <label class="form-label fw-bold">Category *</label>
+                                <select name="category" class="form-select item-category" required disabled>
+                                    <option value="">-- Select --</option>
+                                    <option value="travel" {% if item.category == 'travel' %}selected{% endif %}>Travel</option>
+                                    <option value="utilities" {% if item.category == 'utilities' %}selected{% endif %}>Utilities</option>
+                                    <option value="supplies" {% if item.category == 'supplies' %}selected{% endif %}>Supplies</option>
+                                    <option value="rent" {% if item.category == 'rent' %}selected{% endif %}>Rent</option>
+                                    <option value="salaries" {% if item.category == 'salaries' %}selected{% endif %}>Salaries</option>
+                                    <option value="marketing" {% if item.category == 'marketing' %}selected{% endif %}>Marketing</option>
+                                    <option value="insurance" {% if item.category == 'insurance' %}selected{% endif %}>Insurance</option>
+                                    <option value="taxes" {% if item.category == 'taxes' %}selected{% endif %}>Taxes</option>
+                                    <option value="professional_services" {% if item.category == 'professional_services' %}selected{% endif %}>Professional Services</option>
+                                    <option value="equipment" {% if item.category == 'equipment' %}selected{% endif %}>Equipment</option>
+                                    <option value="other" {% if item.category == 'other' %}selected{% endif %}>Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Description *</label>
+                                <textarea name="description_item" rows="2" class="form-control item-description" placeholder="Expense description..." required disabled>{{ item.description }}</textarea>
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label fw-bold">Qty</label>
+                                <input type="number" name="quantity" step="0.01" min="0" class="form-control item-quantity" placeholder="0" value="{{ item.quantity }}" disabled>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label fw-bold">Unit Price</label>
+                                <input type="number" name="unit_price" step="0.01" min="0" class="form-control item-unit-price" placeholder="0.00" value="{{ item.unit_price }}" disabled>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label fw-bold">Amount</label>
+                                <input type="number" name="amount" step="0.01" class="form-control item-amount bg-white" placeholder="0.00" value="{{ item.amount }}" readonly>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end gap-2">
+                                <button type="button" class="btn btn-primary btn-sm edit-item" onclick="editItem(this)">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </button>
+                                <button type="button" class="btn btn-success btn-sm update-item" onclick="updateItem(this)" style="display:none;">
+                                    <i class="bi bi-check-circle"></i> Update
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm remove-item">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="row expense-item mb-3 p-3 border border-primary rounded" id="item-1">
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold">Category *</label>
+                            <select name="category" class="form-select item-category" required>
+                                <option value="">-- Select --</option>
+                                <option value="travel">Travel</option>
+                                <option value="utilities">Utilities</option>
+                                <option value="supplies">Supplies</option>
+                                <option value="rent">Rent</option>
+                                <option value="salaries">Salaries</option>
+                                <option value="marketing">Marketing</option>
+                                <option value="insurance">Insurance</option>
+                                <option value="taxes">Taxes</option>
+                                <option value="professional_services">Professional Services</option>
+                                <option value="equipment">Equipment</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Description *</label>
+                            <textarea name="description_item" rows="2" class="form-control item-description" placeholder="Expense description..." required></textarea>
+                        </div>
+                        <div class="col-md-1">
+                            <label class="form-label fw-bold">Qty</label>
+                            <input type="number" name="quantity" step="0.01" min="0" class="form-control item-quantity" placeholder="0">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold">Unit Price</label>
+                            <input type="number" name="unit_price" step="0.01" min="0" class="form-control item-unit-price" placeholder="0.00">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold">Amount</label>
+                            <input type="number" name="amount" step="0.01" class="form-control item-amount bg-white" placeholder="0.00" readonly>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end gap-2">
+                            <button type="button" class="btn btn-success btn-sm update-item" onclick="updateItem(this)">
+                                <i class="bi bi-check-circle"></i> Update
+                            </button>
+                            <button type="button" class="btn btn-danger btn-sm remove-item" style="display:none;">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <button type="button" class="btn btn-secondary mb-3" id="addExpenseItem">
+                <i class="bi bi-plus-circle"></i> Add Another Expense Item
+            </button>
+            
+            <div class="row mb-4">
+                <div class="col-md-8"></div>
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body text-end">
+                            <h5>Total Amount:</h5>
+                            <h3 class="text-primary" id="totalAmount">K 0.00</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Account (Optional)</label>
+                    <select name="account" class="form-select">
+                        <option value="">-- Select Account --</option>
+                        {% for account in accounts %}
+                            <option value="{{ account.id }}" {% if form.account.value == account.id %}selected{% endif %}>{{ account.name }} (Balance: {{ account.balance }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Receipt (Optional)</label>
+                    <input type="file" name="receipt" class="form-control" accept="image/*">
+                    <small class="text-muted">Upload receipt image</small>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-circle"></i> {{ action }} Expense
+            </button>
+            <a href="{% url 'expense_list' %}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+
+<script>
+let itemCounter = {{ expense_items|length|default:'1' }};
+
+function editItem(button) {
+    const row = button.closest('.expense-item');
+    const fields = row.querySelectorAll('select.item-category, textarea.item-description, input.item-quantity, input.item-unit-price');
+    
+    fields.forEach(field => {
+        field.disabled = false;
+    });
+    
+    row.classList.remove('bg-light');
+    row.classList.add('border-primary', 'bg-white');
+    
+    const editBtn = row.querySelector('.edit-item');
+    const updateBtn = row.querySelector('.update-item');
+    
+    editBtn.style.display = 'none';
+    updateBtn.style.display = 'block';
+    
+    const quantityInput = row.querySelector('.item-quantity');
+    const unitPriceInput = row.querySelector('.item-unit-price');
+    
+    quantityInput.addEventListener('input', function() {
+        const quantity = parseFloat(quantityInput.value) || 0;
+        const unitPrice = parseFloat(unitPriceInput.value) || 0;
+        const amount = quantity * unitPrice;
+        row.querySelector('.item-amount').value = amount.toFixed(2);
+        calculateTotal();
+    });
+    
+    unitPriceInput.addEventListener('input', function() {
+        const quantity = parseFloat(quantityInput.value) || 0;
+        const unitPrice = parseFloat(unitPriceInput.value) || 0;
+        const amount = quantity * unitPrice;
+        row.querySelector('.item-amount').value = amount.toFixed(2);
+        calculateTotal();
+    });
+    
+    const firstInput = row.querySelector('select.item-category');
+    if (firstInput) {
+        firstInput.focus();
+    }
+}
+
+function updateItem(button) {
+    const row = button.closest('.expense-item');
+    const category = row.querySelector('.item-category').value;
+    const description = row.querySelector('.item-description').value.trim();
+    const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
+    const unitPrice = parseFloat(row.querySelector('.item-unit-price').value) || 0;
+    
+    if (!category) {
+        alert('Please select a category');
+        return;
+    }
+    
+    if (!description) {
+        alert('Please enter a description');
+        return;
+    }
+    
+    const amount = quantity * unitPrice;
+    row.querySelector('.item-amount').value = amount.toFixed(2);
+    
+    row.classList.remove('border-primary', 'bg-white');
+    row.classList.add('bg-light');
+    
+    const fields = row.querySelectorAll('select.item-category, textarea.item-description, input.item-quantity, input.item-unit-price');
+    fields.forEach(field => {
+        field.disabled = true;
+    });
+    
+    const editBtn = row.querySelector('.edit-item');
+    const updateBtn = row.querySelector('.update-item');
+    
+    editBtn.style.display = 'block';
+    updateBtn.style.display = 'none';
+    
+    row.classList.add('border-success');
+    setTimeout(() => {
+        row.classList.remove('border-success');
+    }, 2000);
+    
+    calculateTotal();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('expenseItemsContainer');
+    const addBtn = document.getElementById('addExpenseItem');
+    const totalDisplay = document.getElementById('totalAmount');
+    
+    function calculateItemAmount(row) {
+        const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
+        const unitPrice = parseFloat(row.querySelector('.item-unit-price').value) || 0;
+        const amount = quantity * unitPrice;
+        row.querySelector('.item-amount').value = amount.toFixed(2);
+        return amount;
+    }
+    
+    function calculateTotal() {
+        let total = 0;
+        document.querySelectorAll('.expense-item').forEach(row => {
+            total += calculateItemAmount(row);
+        });
+        totalDisplay.textContent = 'K ' + total.toFixed(2);
+        return total;
+    }
+    
+    function updateRemoveButtons() {
+        const items = container.querySelectorAll('.expense-item');
+        items.forEach((item, index) => {
+            const removeBtn = item.querySelector('.remove-item');
+            removeBtn.style.display = items.length > 1 ? 'block' : 'none';
+        });
+    }
+    
+    container.addEventListener('input', function(e) {
+        if (e.target.classList.contains('item-quantity') || e.target.classList.contains('item-unit-price')) {
+            const row = e.target.closest('.expense-item');
+            row.classList.add('border-warning');
+            row.classList.remove('border-success');
+            
+            const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
+            const unitPrice = parseFloat(row.querySelector('.item-unit-price').value) || 0;
+            const amount = quantity * unitPrice;
+            row.querySelector('.item-amount').value = amount.toFixed(2);
+            
+            calculateTotal();
+        }
+    });
+    
+    container.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-item')) {
+            const item = e.target.closest('.expense-item');
+            if (container.querySelectorAll('.expense-item').length > 1) {
+                item.remove();
+                calculateTotal();
+                updateRemoveButtons();
+            }
+        }
+    });
+    
+    addBtn.addEventListener('click', function() {
+        itemCounter++;
+        const newItem = document.createElement('div');
+        newItem.className = 'row expense-item mb-3 p-3 border border-primary rounded bg-white';
+        newItem.id = 'item-' + itemCounter;
+        newItem.innerHTML = `
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Category *</label>
+                <select name="category" class="form-select item-category" required>
+                    <option value="">-- Select --</option>
+                    <option value="travel">Travel</option>
+                    <option value="utilities">Utilities</option>
+                    <option value="supplies">Supplies</option>
+                    <option value="rent">Rent</option>
+                    <option value="salaries">Salaries</option>
+                    <option value="marketing">Marketing</option>
+                    <option value="insurance">Insurance</option>
+                    <option value="taxes">Taxes</option>
+                    <option value="professional_services">Professional Services</option>
+                    <option value="equipment">Equipment</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Description *</label>
+                <textarea name="description_item" rows="2" class="form-control item-description" placeholder="Expense description..." required></textarea>
+            </div>
+            <div class="col-md-1">
+                <label class="form-label fw-bold">Qty</label>
+                <input type="number" name="quantity" step="0.01" min="0" class="form-control item-quantity" placeholder="0">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Unit Price</label>
+                <input type="number" name="unit_price" step="0.01" min="0" class="form-control item-unit-price" placeholder="0.00">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Amount</label>
+                <input type="number" name="amount" step="0.01" class="form-control item-amount bg-white" placeholder="0.00" readonly>
+            </div>
+            <div class="col-md-2 d-flex align-items-end gap-2">
+                <button type="button" class="btn btn-success btn-sm update-item" onclick="updateItem(this)">
+                    <i class="bi bi-check-circle"></i> Update
+                </button>
+                <button type="button" class="btn btn-primary btn-sm edit-item" onclick="editItem(this)" style="display:none;">
+                    <i class="bi bi-pencil"></i> Edit
+                </button>
+                <button type="button" class="btn btn-danger btn-sm remove-item">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(newItem);
+        updateRemoveButtons();
+        
+        const quantityInput = newItem.querySelector('.item-quantity');
+        const unitPriceInput = newItem.querySelector('.item-unit-price');
+        
+        quantityInput.addEventListener('input', function() {
+            const quantity = parseFloat(quantityInput.value) || 0;
+            const unitPrice = parseFloat(unitPriceInput.value) || 0;
+            const amount = quantity * unitPrice;
+            newItem.querySelector('.item-amount').value = amount.toFixed(2);
+            calculateTotal();
+        });
+        
+        unitPriceInput.addEventListener('input', function() {
+            const quantity = parseFloat(quantityInput.value) || 0;
+            const unitPrice = parseFloat(unitPriceInput.value) || 0;
+            const amount = quantity * unitPrice;
+            newItem.querySelector('.item-amount').value = amount.toFixed(2);
+            calculateTotal();
+        });
+        
+        const categorySelect = newItem.querySelector('.item-category');
+        categorySelect.focus();
+    });
+    
+    calculateTotal();
+    updateRemoveButtons();
+});
+</script>
+{% endblock %}

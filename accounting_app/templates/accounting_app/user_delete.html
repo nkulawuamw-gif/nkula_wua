@@ -1,0 +1,35 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Delete User{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>Delete User</h4>
+</div>
+
+<div class="card border-danger">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Warning!</h5>
+    </div>
+    <div class="card-body">
+        <p>Are you sure you want to delete user <strong>{{ delete_user.username }}</strong>?</p>
+        <p class="text-danger">This action cannot be undone. All data associated with this user will be permanently deleted.</p>
+        
+        <div class="alert alert-info">
+            <strong>User Details:</strong>
+            <ul class="mb-0">
+                <li>Username: {{ delete_user.username }}</li>
+                <li>Email: {{ delete_user.email|default:"Not set" }}</li>
+                <li>Role: {{ delete_user.userprofile.get_role_display }}</li>
+            </ul>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">
+                <i class="bi bi-trash"></i> Delete User
+            </button>
+            <a href="{% url 'user_list' %}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

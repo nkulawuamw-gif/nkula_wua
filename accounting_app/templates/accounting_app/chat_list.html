@@ -1,0 +1,120 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Internal Communications{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4><i class="bi bi-people-fill me-2"></i>Internal Communications</h4>
+    {% if total_unread > 0 %}
+    <span class="badge bg-danger">{{ total_unread }} unread</span>
+    {% endif %}
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="bi bi-person-plus me-1"></i>Select User</h6>
+    </div>
+    <div class="card-body">
+        <div class="row g-2">
+            <div class="col-md-5">
+                <select id="userSelect" class="form-select">
+                    <option value="">-- Select a user --</option>
+                    {% for user in all_users %}
+                    <option value="{{ user.id }}">{{ user.get_full_name|default:user.username }} (@{{ user.username }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-7 d-flex gap-2">
+                <button class="btn btn-outline-success" onclick="quickAction('message')" id="btnMessage" disabled>
+                    <i class="bi bi-chat-text me-1"></i> Message
+                </button>
+                <button class="btn btn-outline-success" onclick="quickAction('voice')" id="btnVoice" disabled>
+                    <i class="bi bi-telephone me-1"></i> Voice Call
+                </button>
+                <button class="btn btn-outline-primary" onclick="quickAction('video')" id="btnVideo" disabled>
+                    <i class="bi bi-camera-video me-1"></i> Video Call
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        {% for conv in conversations %}
+        <a href="{% url 'chat_conversation' conv.user.id %}" class="text-decoration-none">
+            <div class="d-flex align-items-center p-3 border-bottom {% if conv.unread > 0 %}bg-light{% endif %}" style="transition: background 0.2s;">
+                <div class="position-relative me-3">
+                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; font-size: 20px; font-weight: bold;">
+                        {{ conv.user.username|first|upper }}
+                    </div>
+                    {% if conv.unread > 0 %}
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                        {{ conv.unread }}
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="flex-grow-1">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <strong class="{% if conv.unread > 0 %}text-dark{% else %}text-muted{% endif %}">{{ conv.user.get_full_name|default:conv.user.username }}</strong>
+                        {% if conv.last_time %}
+                        <small class="text-muted">{{ conv.last_time|timesince }} ago</small>
+                        {% endif %}
+                    </div>
+                    <small class="text-truncate d-block {% if conv.unread > 0 %}fw-bold{% else %}text-muted{% endif %}" style="max-width: 500px;">
+                        {{ conv.last_message }}
+                    </small>
+                </div>
+                <div class="ms-2" onclick="event.preventDefault(); event.stopPropagation();">
+                    <a href="{% url 'chat_conversation' conv.user.id %}" class="btn btn-sm btn-outline-success me-1" title="Voice Call">
+                        <i class="bi bi-telephone"></i>
+                    </a>
+                    <a href="{% url 'chat_conversation' conv.user.id %}" class="btn btn-sm btn-outline-primary" title="Video Call">
+                        <i class="bi bi-camera-video"></i>
+                    </a>
+                </div>
+            </div>
+        </a>
+        {% empty %}
+        <div class="p-4 text-center text-muted">
+            <i class="bi bi-chat-square-text display-4"></i>
+            <p class="mt-2">No conversations yet. Start messaging other users!</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('userSelect').addEventListener('change', function() {
+    const hasUser = this.value !== '';
+    document.getElementById('btnMessage').disabled = !hasUser;
+    document.getElementById('btnVoice').disabled = !hasUser;
+    document.getElementById('btnVideo').disabled = !hasUser;
+});
+
+function quickAction(type) {
+    const userId = document.getElementById('userSelect').value;
+    if (!userId) return;
+    if (type === 'message') {
+        window.location.href = '/chat/' + userId + '/';
+    } else if (type === 'voice' || type === 'video') {
+        window.location.href = '/chat/' + userId + '/?call=' + type;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const params = new URLSearchParams(window.location.search);
+    const callType = params.get('call');
+    if (callType) {
+        const userId = document.getElementById('userSelect').value;
+        if (userId) {
+            setTimeout(() => {
+                const btn = callType === 'video' ? document.getElementById('btnVideo') : document.getElementById('btnVoice');
+                if (btn) btn.click();
+            }, 500);
+        }
+    }
+});
+</script>
+{% endblock %}

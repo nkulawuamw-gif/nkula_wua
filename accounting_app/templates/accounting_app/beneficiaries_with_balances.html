@@ -1,0 +1,166 @@
+{% extends "accounting_app/base.html" %}
+{% load custom_filters %}
+{% block title %}Beneficiaries with Balances{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center">
+        <div>
+            <h4 class="mb-0">Beneficiaries with Balances</h4>
+            <small class="text-muted">Generated on {% now "Y-m-d H:i" %}</small>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <button onclick="window.print()" class="btn btn-primary">
+            <i class="bi bi-printer"></i> Print
+        </button>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-4" id="reportTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <a href="{% url 'reports' %}" class="nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">
+            <i class="bi bi-grid-3x3-gap"></i> Financial Summary
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a href="{% url 'scheme_reports' %}" class="nav-link {% if request.resolver_match.url_name == 'scheme_reports' %}active{% endif %}">
+            <i class="bi bi-building"></i> Scheme Performance
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a href="{% url 'expense_reports' %}" class="nav-link {% if request.resolver_match.url_name == 'expense_reports' %}active{% endif %}">
+            <i class="bi bi-wallet2"></i> Expense Report
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a href="{% url 'beneficiaries_with_balances' %}" class="nav-link {% if request.resolver_match.url_name == 'beneficiaries_with_balances' %}active{% endif %}">
+            <i class="bi bi-people"></i> Beneficiaries with Balances
+        </a>
+    </li>
+</ul>
+
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h6 class="mb-0"><i class="bi bi-funnel"></i> Filter by Scheme</h6>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Scheme</label>
+                <select name="scheme" class="form-select">
+                    <option value="">All Schemes</option>
+                    {% for code, name in schemes %}
+                    <option value="{{ code }}" {% if scheme == code %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Beneficiaries with Balance</h6>
+                <h3 class="text-info">{{ total_count }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Total Invoiced</h6>
+                <h3 class="text-primary">{{ user.userprofile.get_currency_symbol }}{{ grand_total_invoiced|floatformat:2 }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Total Collected</h6>
+                <h3 class="text-success">{{ user.userprofile.get_currency_symbol }}{{ grand_total_paid|floatformat:2 }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Total Outstanding</h6>
+                <h3 class="text-warning">{{ user.userprofile.get_currency_symbol }}{{ grand_total_balance|floatformat:2 }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0"><i class="bi bi-people"></i> All Beneficiaries with Outstanding Balances</h5>
+    </div>
+    <div class="card-body">
+        {% if beneficiaries_with_balance %}
+        <div class="table-responsive">
+            <table class="table table-striped table-hover table-sm" style="font-size: 0.85rem;">
+                <thead class="table-primary">
+                    <tr>
+                        <th style="padding: 0.4rem 0.5rem;">#</th>
+                        <th style="padding: 0.4rem 0.5rem;">Beneficiary Name</th>
+                        <th style="padding: 0.4rem 0.5rem;">Scheme</th>
+                        <th style="padding: 0.4rem 0.5rem;">Village</th>
+                        <th style="padding: 0.4rem 0.5rem;">Phone</th>
+                        <th class="text-end" style="padding: 0.4rem 0.5rem;">Total Invoiced</th>
+                        <th class="text-end" style="padding: 0.4rem 0.5rem;">Total Paid</th>
+                        <th class="text-end" style="padding: 0.4rem 0.5rem;">Balance</th>
+                        <th class="text-center" style="padding: 0.4rem 0.5rem;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for beneficiary in beneficiaries_with_balance %}
+                    <tr>
+                        <td style="padding: 0.3rem 0.5rem;">{{ forloop.counter }}</td>
+                        <td style="padding: 0.3rem 0.5rem;"><strong style="font-size: 0.8rem;">{{ beneficiary.name }}</strong></td>
+                        <td style="padding: 0.3rem 0.5rem;">{{ beneficiary.scheme|default:"-" }}</td>
+                        <td style="padding: 0.3rem 0.5rem;">{{ beneficiary.village|default:"-" }}</td>
+                        <td style="padding: 0.3rem 0.5rem;">{{ beneficiary.phone|default:"-" }}</td>
+                        <td class="text-end" style="padding: 0.3rem 0.5rem;">{{ user.userprofile.get_currency_symbol }}{{ beneficiary.total_invoiced|floatformat:2 }}</td>
+                        <td class="text-end text-success" style="padding: 0.3rem 0.5rem;">{{ user.userprofile.get_currency_symbol }}{{ beneficiary.total_paid|floatformat:2 }}</td>
+                        <td class="text-end text-warning" style="padding: 0.3rem 0.5rem;"><strong>{{ user.userprofile.get_currency_symbol }}{{ beneficiary.balance|floatformat:2 }}</strong></td>
+                        <td class="text-center" style="padding: 0.3rem 0.5rem;">
+                            <a href="{% url 'beneficiary_detail' beneficiary.id %}" class="btn btn-sm btn-info py-0 px-1" style="font-size: 0.75rem;">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-warning">
+                    <tr>
+                        <td colspan="5" class="text-end" style="padding: 0.4rem 0.5rem;"><strong>GRAND TOTAL</strong></td>
+                        <td class="text-end" style="padding: 0.4rem 0.5rem;"><strong>{{ user.userprofile.get_currency_symbol }}{{ grand_total_invoiced|floatformat:2 }}</strong></td>
+                        <td class="text-end text-success" style="padding: 0.4rem 0.5rem;"><strong>{{ user.userprofile.get_currency_symbol }}{{ grand_total_paid|floatformat:2 }}</strong></td>
+                        <td class="text-end text-warning" style="padding: 0.4rem 0.5rem;"><strong>{{ user.userprofile.get_currency_symbol }}{{ grand_total_balance|floatformat:2 }}</strong></td>
+                        <td style="padding: 0.4rem 0.5rem;"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info text-center">
+            <i class="bi bi-info-circle"></i> No beneficiaries with outstanding balances found.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{% url 'reports' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Reports
+    </a>
+</div>
+{% endblock %}

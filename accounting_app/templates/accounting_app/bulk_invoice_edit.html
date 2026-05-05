@@ -1,0 +1,135 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Edit Bulk Invoices{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4><i class="bi bi-journal-plus"></i> Edit Bulk Invoices</h4>
+    <a href="{% url 'invoice_list' %}" class="btn btn-secondary">Back to Invoices</a>
+</div>
+
+<div class="alert alert-info mb-4">
+    <i class="bi bi-info-circle"></i> 
+    <strong>Edit Bulk Invoices:</strong> You are editing {{ invoices.count }} invoices created together. Changes will apply to all of them.
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Invoice #</th>
+                    <th>Client</th>
+                    <th>Households</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for invoice in invoices %}
+                <tr>
+                    <td>{{ invoice.invoice_number }}</td>
+                    <td>{{ invoice.client.name }}</td>
+                    <td>{{ invoice.household_count }}</td>
+                    <td>{{ user.userprofile.get_currency_symbol }}{{ invoice.total_amount|floatformat:2 }}</td>
+                    <td>{{ invoice.status|title }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h6 class="mb-0"><i class="bi bi-calculator"></i> Update Billing Details (Applied to All {{ invoices.count }} Invoices)</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Number of Households</label>
+                    <input type="number" name="household_count" id="household_count" class="form-control" min="0" value="{{ first_invoice.household_count }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Cost Per Unit</label>
+                    <input type="number" name="cost_per_unit" id="cost_per_unit" class="form-control" min="0" step="0.01" value="{{ first_invoice.cost_per_unit }}">
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Issue Date *</label>
+                    <input type="date" name="issue_date" id="id_issue_date" class="form-control" value="{{ first_invoice.issue_date|date:'Y-m-d' }}" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Due Date *</label>
+                    <input type="date" name="due_date" id="id_due_date" class="form-control" value="{{ first_invoice.due_date|date:'Y-m-d' }}" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Tax Rate (%)</label>
+                    <input type="number" name="tax_rate" id="id_tax_rate" class="form-control" min="0" step="0.01" value="{{ first_invoice.tax_rate }}">
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" rows="2" class="form-control">{{ first_invoice.notes|default:"" }}</textarea>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Terms</label>
+                    <textarea name="terms" rows="2" class="form-control">{{ first_invoice.terms|default:"" }}</textarea>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Discount</label>
+                    <input type="number" name="discount" id="id_discount" class="form-control" min="0" step="0.01" value="{{ first_invoice.discount }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Tax Amount</label>
+                    <input type="text" id="tax_amount_display" class="form-control bg-light" readonly value="{{ user.userprofile.get_currency_symbol }}{{ first_invoice.tax_amount|floatformat:2 }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Total Per Invoice</label>
+                    <input type="text" id="total_amount_display" class="form-control bg-success text-white fw-bold fs-5" readonly value="{{ user.userprofile.get_currency_symbol }}{{ first_invoice.total_amount|floatformat:2 }}">
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary" style="background-color: #0984e3; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer;">
+            <i class="bi bi-check-circle"></i> Update All {{ invoices.count }} Invoices
+        </button>
+        <a href="{% url 'invoice_list' %}" class="btn btn-secondary" style="background-color: #636e72; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none;">Cancel</a>
+        <a href="{% url 'bulk_invoice_delete' bulk_group_id %}" class="btn btn-danger" style="background-color: #d63031; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; margin-left: auto;" onclick="return confirm('Delete all {{ invoices.count }} bulk invoices?');">
+            <i class="bi bi-trash"></i> Delete All
+        </a>
+    </div>
+</form>
+
+<script>
+function calculateTotal() {
+    var households = parseFloat(document.getElementById('household_count').value) || 0;
+    var costPerUnit = parseFloat(document.getElementById('cost_per_unit').value) || 0;
+    var taxRate = parseFloat(document.getElementById('id_tax_rate').value) || 0;
+    var discount = parseFloat(document.getElementById('id_discount').value) || 0;
+    
+    var subtotal = households * costPerUnit;
+    var taxAmount = subtotal * (taxRate / 100);
+    var totalAmount = subtotal + taxAmount - discount;
+    
+    document.getElementById('tax_amount_display').value = '{{ user.userprofile.get_currency_symbol }}' + taxAmount.toFixed(2);
+    document.getElementById('total_amount_display').value = '{{ user.userprofile.get_currency_symbol }}' + totalAmount.toFixed(2);
+}
+
+document.getElementById('household_count').addEventListener('input', calculateTotal);
+document.getElementById('cost_per_unit').addEventListener('input', calculateTotal);
+document.getElementById('id_tax_rate').addEventListener('input', calculateTotal);
+document.getElementById('id_discount').addEventListener('input', calculateTotal);
+</script>
+{% endblock %}

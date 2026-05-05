@@ -1,0 +1,389 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Admin Portal - Nkulawua</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f1923;
+            color: #ffffff;
+            min-height: 100vh;
+        }
+
+        .admin-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 5%;
+            background: rgba(15, 25, 35, 0.95);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .admin-nav-brand {
+            font-size: 20px;
+            font-weight: 700;
+            color: #ffffff;
+            text-decoration: none;
+        }
+
+        .admin-nav-brand span {
+            color: #00d4ff;
+        }
+
+        .admin-nav-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .admin-nav-right a {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.3s;
+        }
+
+        .admin-nav-right a:hover {
+            color: #00d4ff;
+        }
+
+        .btn-logout {
+            background: rgba(214, 48, 49, 0.2);
+            color: #ff7675;
+            padding: 8px 20px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-logout:hover {
+            background: rgba(214, 48, 49, 0.4);
+            color: #ff7675;
+        }
+
+        .admin-header {
+            padding: 50px 5% 30px;
+            text-align: center;
+        }
+
+        .admin-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .admin-header h1 span {
+            background: linear-gradient(90deg, #00d4ff, #00ff88);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .admin-header p {
+            color: rgba(255,255,255,0.6);
+            font-size: 1rem;
+        }
+
+        .welcome-bar {
+            background: linear-gradient(135deg, rgba(9, 132, 227, 0.2), rgba(0, 184, 148, 0.2));
+            border: 1px solid rgba(9, 132, 227, 0.3);
+            border-radius: 15px;
+            padding: 20px 25px;
+            margin: 0 5% 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .welcome-bar .welcome-text {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .welcome-bar .avatar {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #0984e3, #00b894);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .welcome-bar h4 {
+            font-size: 1.1rem;
+            margin-bottom: 3px;
+        }
+
+        .welcome-bar p {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.6);
+            margin: 0;
+        }
+
+        .welcome-bar .role-badge {
+            background: linear-gradient(135deg, #0984e3, #00b894);
+            padding: 6px 16px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .section-title {
+            padding: 0 5%;
+            margin-bottom: 25px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.9);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            padding: 0 5% 50px;
+        }
+
+        .admin-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 30px 25px;
+            transition: all 0.3s;
+            cursor: pointer;
+            text-decoration: none;
+            color: #ffffff;
+            display: block;
+        }
+
+        .admin-card:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(9, 132, 227, 0.5);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(9, 132, 227, 0.2);
+            color: #ffffff;
+        }
+
+        .admin-card-icon {
+            width: 55px;
+            height: 55px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 18px;
+        }
+
+        .icon-blue {
+            background: rgba(9, 132, 227, 0.2);
+            color: #74b9ff;
+        }
+
+        .icon-green {
+            background: rgba(0, 184, 148, 0.2);
+            color: #55efc4;
+        }
+
+        .icon-purple {
+            background: rgba(108, 92, 231, 0.2);
+            color: #a29bfe;
+        }
+
+        .icon-orange {
+            background: rgba(253, 121, 68, 0.2);
+            color: #fab1a0;
+        }
+
+        .icon-red {
+            background: rgba(214, 48, 49, 0.2);
+            color: #ff7675;
+        }
+
+        .icon-teal {
+            background: rgba(0, 206, 209, 0.2);
+            color: #81ecec;
+        }
+
+        .admin-card h4 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .admin-card p {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.5);
+            line-height: 1.4;
+            margin: 0;
+        }
+
+        .admin-card .arrow {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.2rem;
+            color: rgba(255,255,255,0.3);
+            transition: all 0.3s;
+        }
+
+        .admin-card:hover .arrow {
+            color: #00d4ff;
+            right: 15px;
+        }
+
+        .admin-card {
+            position: relative;
+        }
+
+        .footer {
+            padding: 25px 5%;
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.4);
+            font-size: 0.85rem;
+        }
+
+        .footer a {
+            color: #00d4ff;
+            text-decoration: none;
+        }
+
+        @media (max-width: 768px) {
+            .admin-header h1 {
+                font-size: 1.5rem;
+            }
+            .welcome-bar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="admin-nav">
+        <a href="{% url 'landing' %}" class="admin-nav-brand">Nkula<span>wa</span></a>
+        <div class="admin-nav-right">
+            <a href="{% url 'landing' %}">Home</a>
+            <a href="{% url 'logout' %}" class="btn-logout"><i class="bi bi-box-arrow-right"></i> Logout</a>
+        </div>
+    </nav>
+
+    <div class="admin-header">
+        <h1>Admin <span>Portal</span></h1>
+        <p>Manage system access and navigate to application modules</p>
+    </div>
+
+    <div class="welcome-bar">
+        <div class="welcome-text">
+            <div class="avatar">{{ user.username|default:user.username|slice:":1"|upper }}</div>
+            <div>
+                <h4>Welcome, {{ user.get_full_name|default:user.username }}</h4>
+                <p>Last login: {{ user.last_login|date:"M d, Y H:i" }}</p>
+            </div>
+        </div>
+        <span class="role-badge">
+            {% if user.is_superuser %}Superuser{% else %}Staff{% endif %}
+        </span>
+    </div>
+
+    <div class="section-title">
+        <i class="bi bi-grid-3x3-gap-fill"></i> System Modules
+    </div>
+
+    <div class="admin-grid">
+        <a href="{% url 'dashboard' %}" class="admin-card">
+            <div class="admin-card-icon icon-blue">
+                <i class="bi bi-speedometer2"></i>
+            </div>
+            <h4>Accounting App</h4>
+            <p>Full accounting system with invoices, payments, beneficiaries, reports and more.</p>
+            <span class="arrow"><i class="bi bi-arrow-right"></i></span>
+        </a>
+
+        <a href="{% url 'admin:index' %}" class="admin-card">
+            <div class="admin-card-icon icon-green">
+                <i class="bi bi-gear"></i>
+            </div>
+            <h4>Django Admin</h4>
+            <p>Access Django admin panel for database management and system configuration.</p>
+            <span class="arrow"><i class="bi bi-arrow-right"></i></span>
+        </a>
+
+        <a href="{% url 'settings' %}" class="admin-card">
+            <div class="admin-card-icon icon-purple">
+                <i class="bi bi-sliders"></i>
+            </div>
+            <h4>App Settings</h4>
+            <p>Configure application settings, company profile, and system preferences.</p>
+            <span class="arrow"><i class="bi bi-arrow-right"></i></span>
+        </a>
+
+        <a href="{% url 'user_list' %}" class="admin-card">
+            <div class="admin-card-icon icon-orange">
+                <i class="bi bi-people-fill"></i>
+            </div>
+            <h4>User Management</h4>
+            <p>Manage staff accounts, roles, permissions and user profiles.</p>
+            <span class="arrow"><i class="bi bi-arrow-right"></i></span>
+        </a>
+
+        <a href="{% url 'activity_log' %}" class="admin-card">
+            <div class="admin-card-icon icon-teal">
+                <i class="bi bi-clock-history"></i>
+            </div>
+            <h4>Activity Log</h4>
+            <p>View system activity, user actions and audit trail history.</p>
+            <span class="arrow"><i class="bi bi-arrow-right"></i></span>
+        </a>
+
+        <a href="{% url 'year_end_rollover' %}" class="admin-card">
+            <div class="admin-card-icon icon-red">
+                <i class="bi bi-calendar-check"></i>
+            </div>
+            <h4>Year End Rollover</h4>
+            <p>Perform year-end financial rollover and archive previous year data.</p>
+            <span class="arrow"><i class="bi bi-arrow-right"></i></span>
+        </a>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2026 Nkulawua Accounting System. Developed by <a href="#">Mantchombe Technology</a></p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

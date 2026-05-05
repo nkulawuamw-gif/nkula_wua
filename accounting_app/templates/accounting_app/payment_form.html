@@ -1,0 +1,328 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Record Payment{% endblock %}
+
+{% block content %}
+{% load custom_filters %}
+{% with symbol=user.userprofile.get_currency_symbol %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>Record Payment</h4>
+    <a href="{% url 'payment_list' %}" class="btn btn-secondary">View Payments</a>
+</div>
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="card border-0 shadow-sm" style="border-radius: 16px;">
+            <div class="card-body p-4">
+                <h5 class="mb-4 fw-bold"><i class="bi bi-cash me-2"></i>Record Payment</h5>
+                <form method="post" id="payment-form">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Invoice Reference</label>
+                        <select name="invoice" id="invoice-select" class="form-control" onchange="applyInvoiceAmount()">
+                            <option value="">-- All Outstanding Invoices --</option>
+                            {% if pre_selected_invoice_id %}
+                            <option value="{{ pre_selected_invoice_id }}" selected data-amount="{{ pre_selected_invoice_amount_due }}">
+                                {{ pre_selected_invoice_number }} - Due: {{ symbol }}{{ pre_selected_invoice_amount_due|floatformat:2 }}
+                            </option>
+                            {% endif %}
+                        </select>
+                        <small class="text-muted">Select specific invoice or pay all outstanding</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Search Beneficiary</label>
+                        {% if pre_selected_beneficiary_id %}
+                        {% for client in beneficiaries %}
+                        {% if client.id == pre_selected_beneficiary_id %}
+                        <input type="text" id="client-search" class="form-control mb-2" placeholder="Search by name, phone, village..." oninput="searchClients()" value="{{ client.name }} - {{ client.village|default:'No Village' }}">
+                        {% endif %}
+                        {% endfor %}
+                        {% else %}
+                        <input type="text" id="client-search" class="form-control mb-2" placeholder="Search by name, phone, village..." oninput="searchClients()">
+                        {% endif %}
+                        <select name="beneficiary" id="client-select" class="form-select" required onchange="loadClientInvoices(this.value)">
+                            <option value="">-- Select Beneficiary --</option>
+                            {% for client in beneficiaries %}
+                            <option value="{{ client.id }}" data-outstanding="{{ client.total_outstanding }}" data-search="{{ client.name|lower }} {{ client.phone|lower }} {{ client.village|lower }}" {% if pre_selected_beneficiary_id == client.id %}selected{% endif %}>
+                                {{ client.name }} - {{ client.village|default:"No Village" }} ({{ client.scheme|default:"No Scheme" }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="card bg-light border-0 mb-3" style="border-radius: 12px;">
+                        <div class="card-body py-3">
+                            <div class="row text-center">
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Balance Before</small>
+                                    <strong id="balance-before-display" class="text-danger">{{ symbol }}0.00</strong>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Balance After</small>
+                                    <strong id="balance-after-display" class="text-success">{{ symbol }}0.00</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Payment Date</label>
+                        <input type="date" name="payment_date" class="form-control" value="{{ today|date:'Y-m-d' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Paid Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">{{ symbol }}</span>
+                            <input type="number" name="amount" id="paid-amount" class="form-control" step="0.01" min="0" value="0" oninput="updateBalance()">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Paid For</label>
+                        <select name="account" class="form-control" required>
+                            <option value="">-- Select Account --</option>
+                            {% for account in accounts %}
+                            <option value="{{ account.id }}">{{ account.code }} - {{ account.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Payment Method</label>
+                        <select name="payment_method" class="form-control">
+                            <option value="cash">Cash</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="mobile_money">Mobile Money</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Reference</label>
+                        <input type="text" name="reference" class="form-control" placeholder="Receipt/Transaction reference">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100" id="submit-btn">Record Payment</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-7">
+        <div class="card border-0 shadow-sm" style="border-radius: 16px;">
+            <div class="card-body p-4">
+                <h5 class="mb-3 fw-bold">Recent Payments</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Client</th>
+                                <th>Invoice</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payment in payments %}
+                            <tr>
+                                <td>{{ payment.payment_date|date:"Y-m-d" }}</td>
+                                <td>
+                                    {% if payment.client.pk %}
+                                    <a href="{% url 'beneficiary_detail' payment.client.pk %}" class="text-decoration-none">
+                                        {{ payment.client.name }}
+                                    </a>
+                                    {% else %}
+                                    {{ payment.client.name|default:"Unknown" }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if payment.invoice %}
+                                    <a href="{% url 'invoice_edit' payment.invoice.pk %}" class="text-primary">
+                                        {{ payment.invoice.invoice_number }}
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-success fw-bold">{{ symbol }}{{ payment.amount|floatformat:2 }}</td>
+                                <td>
+                                    {% if payment.invoice %}
+                                    {% if payment.invoice.is_fully_paid %}
+                                    <span class="badge bg-success rounded-pill">Paid</span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark rounded-pill">Partial</span>
+                                    {% endif %}
+                                    {% else %}
+                                    {% if payment.client.total_outstanding > 0 %}
+                                    <span class="badge bg-danger rounded-pill">Balance</span>
+                                    {% else %}
+                                    <span class="badge bg-success rounded-pill">Clear</span>
+                                    {% endif %}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="text-muted text-center py-4">No payments yet</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+var symbol = '{{ symbol }}';
+var clientTotalOutstanding = 0;
+var totalInvoiceAmount = 0;
+
+function searchClients() {
+    var searchText = document.getElementById('client-search').value.toLowerCase();
+    var select = document.getElementById('client-select');
+    var options = select.options;
+
+    for (var i = 1; i < options.length; i++) {
+        var option = options[i];
+        var searchData = option.getAttribute('data-search') || '';
+        if (searchData.includes(searchText) || searchText === '') {
+            option.style.display = '';
+        } else {
+            option.style.display = 'none';
+        }
+    }
+
+    if (searchText !== '') {
+        var hasVisible = false;
+        for (var i = 1; i < options.length; i++) {
+            if (options[i].style.display !== 'none') {
+                hasVisible = true;
+                select.value = options[i].value;
+                loadClientInvoices(select.value);
+                break;
+            }
+        }
+        if (!hasVisible) {
+            select.value = '';
+            resetInvoiceDisplay();
+        }
+    } else {
+        loadClientInvoices(select.value);
+    }
+}
+
+function resetInvoiceDisplay() {
+    clientTotalOutstanding = 0;
+    totalInvoiceAmount = 0;
+    document.getElementById('balance-before-display').textContent = symbol + '0.00';
+    document.getElementById('balance-before-display').setAttribute('data-value', '0.00');
+    document.getElementById('balance-after-display').textContent = symbol + '0.00';
+    document.getElementById('paid-amount').value = '0';
+}
+
+function updateBalance() {
+    var paidAmount = parseFloat(document.getElementById('paid-amount').value) || 0;
+    var balanceBefore = parseFloat(document.getElementById('balance-before-display').getAttribute('data-value')) || clientTotalOutstanding;
+    var balanceAfter = balanceBefore - paidAmount;
+
+    var balanceAfterEl = document.getElementById('balance-after-display');
+    balanceAfterEl.textContent = symbol + balanceAfter.toFixed(2);
+
+    if (balanceAfter > 0) {
+        balanceAfterEl.classList.remove('text-success');
+        balanceAfterEl.classList.add('text-danger');
+    } else {
+        balanceAfterEl.classList.remove('text-danger');
+        balanceAfterEl.classList.add('text-success');
+    }
+}
+
+function loadClientInvoices(clientId) {
+    var invoiceSelect = document.getElementById('invoice-select');
+    invoiceSelect.innerHTML = '<option value="">-- All Outstanding Invoices --</option>';
+    clientTotalOutstanding = 0;
+    totalInvoiceAmount = 0;
+
+    if (!clientId) {
+        resetInvoiceDisplay();
+        return;
+    }
+
+    var clientSelect = document.getElementById('client-select');
+    var selectedOption = clientSelect.options[clientSelect.selectedIndex];
+    if (selectedOption && selectedOption.value) {
+        clientTotalOutstanding = parseFloat(selectedOption.getAttribute('data-outstanding')) || 0;
+    }
+
+    document.getElementById('balance-before-display').textContent = symbol + clientTotalOutstanding.toFixed(2);
+    document.getElementById('balance-before-display').setAttribute('data-value', clientTotalOutstanding.toFixed(2));
+    document.getElementById('balance-after-display').textContent = symbol + clientTotalOutstanding.toFixed(2);
+    document.getElementById('paid-amount').value = clientTotalOutstanding.toFixed(2);
+
+    var url = '/clients/' + clientId + '/invoices/';
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            var outstandingInvoices = data.filter(inv => inv.status !== 'paid');
+            if (outstandingInvoices.length > 0) {
+                outstandingInvoices.forEach(invoice => {
+                    var option = document.createElement('option');
+                    option.value = invoice.id;
+                    option.text = '#' + invoice.invoice_number + ' - ' + symbol + invoice.amount_due.toFixed(2);
+                    option.setAttribute('data-total-amount', invoice.total_amount);
+                    option.setAttribute('data-amount-paid', invoice.amount_paid);
+                    option.setAttribute('data-amount-due', invoice.amount_due);
+                    invoiceSelect.appendChild(option);
+                });
+                totalInvoiceAmount = outstandingInvoices.reduce(function(sum, inv) { return sum + inv.amount_due; }, 0);
+            }
+            updateBalance();
+        })
+        .catch(error => console.log('Error loading invoices:', error));
+}
+
+function applyInvoiceAmount() {
+    var invoiceSelect = document.getElementById('invoice-select');
+    var selectedOption = invoiceSelect.options[invoiceSelect.selectedIndex];
+
+    if (selectedOption && selectedOption.value) {
+        var amount = selectedOption.getAttribute('data-amount') || selectedOption.getAttribute('data-amount-due');
+        if (amount) {
+            document.getElementById('paid-amount').value = parseFloat(amount).toFixed(2);
+        }
+    } else {
+        document.getElementById('paid-amount').value = clientTotalOutstanding.toFixed(2);
+    }
+    updateBalance();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var clientSelect = document.getElementById('client-select');
+    var invoiceSelect = document.getElementById('invoice-select');
+    var selectedClientId = '{{ pre_selected_beneficiary_id|default:"" }}';
+    var selectedInvoiceId = '{{ pre_selected_invoice_id|default:"" }}';
+    var selectedInvoiceAmount = '{{ pre_selected_invoice_amount_due|default:"" }}';
+
+    if (selectedInvoiceAmount) {
+        document.getElementById('paid-amount').value = parseFloat(selectedInvoiceAmount).toFixed(2);
+        updateBalance();
+    }
+
+    if (selectedClientId) {
+        clientSelect.value = selectedClientId;
+        loadClientInvoices(selectedClientId);
+
+        if (selectedInvoiceId) {
+            setTimeout(function() {
+                invoiceSelect.value = selectedInvoiceId;
+                if (invoiceSelect.value) {
+                    applyInvoiceAmount();
+                }
+            }, 300);
+        }
+    }
+
+    if (clientSelect.value) {
+        loadClientInvoices(clientSelect.value);
+    }
+});
+</script>
+{% endwith %}
+{% endblock %}

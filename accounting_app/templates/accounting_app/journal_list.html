@@ -1,0 +1,46 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Journal Entries{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>Journal Entries</h4>
+    <a href="{% url 'journal_create' %}" class="btn btn-primary"><i class="bi bi-plus"></i> New Entry</a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Entry #</th>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Total Debit</th>
+                    <th>Total Credit</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in entries %}
+                <tr>
+                    <td><a href="{% url 'journal_edit' entry.pk %}">{{ entry.entry_number }}</a></td>
+                    <td>{{ entry.date }}</td>
+                    <td>{{ entry.description }}</td>
+                    <td>{{ user.userprofile.get_currency_symbol }}{{ entry.total_debit|floatformat:2 }}</td>
+                    <td>{{ user.userprofile.get_currency_symbol }}{{ entry.total_credit|floatformat:2 }}</td>
+                    <td>
+                        {% if entry.is_posted %}
+                            <span class="status-badge status-paid">Posted</span>
+                        {% else %}
+                            <span class="status-badge status-draft">Draft</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted">No journal entries</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

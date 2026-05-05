@@ -1,0 +1,335 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Beneficiaries{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>Beneficiaries</h4>
+    <div>
+        <a href="{% url 'beneficiary_create' %}" class="btn btn-primary"><i class="bi bi-plus"></i> Add Beneficiary</a>
+        <a href="{% url 'bulk_beneficiary_create' %}" class="btn btn-info"><i class="bi bi-people"></i> Bulk Create</a>
+        <a href="{% url 'bulk_beneficiary_import' %}" class="btn btn-warning"><i class="bi bi-file-earmark-arrow-up"></i> Import Excel</a>
+        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#whatsappModal">
+            <i class="bi bi-whatsapp"></i> Send WhatsApp
+        </button>
+    </div>
+</div>
+
+<div class="modal fade" id="bulkDeleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-trash"></i> Bulk Delete Beneficiaries</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="bulkDeleteCount">0</strong> selected beneficiary(ies)?</p>
+                <p class="text-danger">This will also delete all related invoices and payments!</p>
+            </div>
+            <div class="modal-footer">
+                <form method="post" action="{% url 'bulk_beneficiary_delete' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="beneficiary_ids" id="bulkDeleteIds">
+                    <button type="submit" class="btn btn-danger">Yes, Delete Selected</button>
+                </form>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateBulkDeleteBtn() {
+    const checkboxes = document.querySelectorAll('.beneficiary-checkbox:checked');
+    const btn = document.getElementById('bulkDeleteBtn');
+    const count = checkboxes.length;
+    btn.style.display = count > 0 ? 'inline-block' : 'none';
+    document.getElementById('bulkDeleteCount').textContent = count;
+    
+    const ids = Array.from(checkboxes).map(cb => cb.value).join(',');
+    document.getElementById('bulkDeleteIds').value = ids;
+}
+
+function selectAllBeneficiaries() {
+    const master = document.getElementById('selectAllBeneficiaries');
+    const checkboxes = document.querySelectorAll('.beneficiary-checkbox');
+    checkboxes.forEach(cb => cb.checked = master.checked);
+    updateBulkDeleteBtn();
+}
+</script>
+
+<div class="modal fade" id="whatsappModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-whatsapp"></i> Send WhatsApp Message</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Select Beneficiary</label>
+                    <select id="whatsappBeneficiary" class="form-select">
+                        <option value="">-- Select a Beneficiary --</option>
+                        {% for beneficiary in beneficiaries %}
+                            {% if beneficiary.phone %}
+                            <option value="{{ beneficiary.phone }}" data-name="{{ beneficiary.name }}" data-balance="{{ beneficiary.total_outstanding }}">
+                                {{ beneficiary.name }} - {{ beneficiary.phone }}
+                            </option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Or Enter Phone Number</label>
+                    <input type="text" id="whatsappPhone" class="form-control" placeholder="265991234567">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Message</label>
+                    <textarea id="whatsappMessage" class="form-control" rows="5" placeholder="Enter your message..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="sendWhatsApp()">
+                    <i class="bi bi-whatsapp"></i> Send via WhatsApp
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function sendWhatsApp() {
+    var beneficiarySelect = document.getElementById('whatsappBeneficiary');
+    var phoneInput = document.getElementById('whatsappPhone');
+    var message = document.getElementById('whatsappMessage').value;
+    
+    var phone = phoneInput.value.trim();
+    var beneficiaryName = '';
+    
+    if (beneficiarySelect.value && !phone) {
+        var selectedOption = beneficiarySelect.options[beneficiarySelect.selectedIndex];
+        phone = selectedOption.value;
+        beneficiaryName = selectedOption.dataset.name;
+        var balance = selectedOption.dataset.balance;
+        var currencySymbol = "{{ user.userprofile.get_currency_symbol }}";
+        if (!message) {
+            message = `Hello ${beneficiaryName},\n\nThis is a reminder regarding your account with us.\n\nOutstanding Balance: ${currencySymbol}${balance}\n\nThank you for your business.`;
+        } else {
+            message = `Hello ${beneficiaryName},\n\n` + message;
+        }
+    }
+    
+    if (!phone) {
+        alert('Please select a beneficiary or enter a phone number');
+        return;
+    }
+    
+    phone = phone.trim().replace(/[\s\+\-]/g, '');
+    if (!phone.startsWith('265') && !phone.startsWith('0')) {
+        phone = '265' + phone;
+    }
+    if (phone.startsWith('0')) {
+        phone = '265' + phone.substring(1);
+    }
+    
+    var encodedMessage = encodeURIComponent(message);
+    var whatsappUrl = "https://wa.me/" + phone + "?text=" + encodedMessage;
+    window.open(whatsappUrl, '_blank');
+    
+    var modal = bootstrap.Modal.getInstance(document.getElementById('whatsappModal'));
+    modal.hide();
+}
+</script>
+
+<div class="card mb-4">
+    <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-funnel"></i> Filter Beneficiaries</h6>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Search</label>
+                <div class="position-relative">
+                    <input type="text" id="beneficiarySearch" name="search" class="form-control" placeholder="Name, email, phone, address..." value="{{ search_filter }}" autocomplete="off">
+                    <div id="searchSuggestions" class="list-group position-absolute w-100" style="z-index: 1000; max-height: 250px; overflow-y: auto; display: none;"></div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Beneficiary Type</label>
+                <select name="beneficiary_type" class="form-select">
+                    <option value="">All Types</option>
+                    <option value="private" {% if beneficiary_type_filter == 'private' %}selected{% endif %}>Private</option>
+                    <option value="communal" {% if beneficiary_type_filter == 'communal' %}selected{% endif %}>Communal</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Scheme</label>
+                <select name="scheme" class="form-select">
+                    <option value="">All Schemes</option>
+                    <option value="Mangale" {% if scheme_filter == 'Mangale' %}selected{% endif %}>Mangale</option>
+                    <option value="Nkala" {% if scheme_filter == 'Nkala' %}selected{% endif %}>Nkala</option>
+                    <option value="Dodza" {% if scheme_filter == 'Dodza' %}selected{% endif %}>Dodza</option>
+                    <option value="Milala" {% if scheme_filter == 'Milala' %}selected{% endif %}>Milala</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Status</label>
+                <select name="is_active" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="true" {% if is_active_filter == 'true' %}selected{% endif %}>Active</option>
+                    <option value="false" {% if is_active_filter == 'false' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2"><i class="bi bi-search"></i> Filter</button>
+                <a href="{% url 'beneficiary_list' %}" class="btn btn-secondary"><i class="bi bi-x-circle"></i> Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-2">
+        <div class="mb-2">
+            <input type="checkbox" id="selectAllBeneficiaries" onchange="selectAllBeneficiaries()">
+            <label for="selectAllBeneficiaries" class="me-3" style="font-size: 0.85rem;">Select All</label>
+            <button type="button" id="bulkDeleteBtn" class="btn btn-danger btn-sm" style="display: none;" data-bs-toggle="modal" data-bs-target="#bulkDeleteModal">
+                <i class="bi bi-trash"></i> Delete Selected
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0" style="font-size: 0.85rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center" style="width: 30px;"></th>
+                        <th class="text-center">Name</th>
+                        <th class="text-center">Type</th>
+                        <th class="text-center">Phone</th>
+                        <th class="text-center">Village</th>
+                        <th class="text-center">Scheme</th>
+                        <th class="text-center">HH</th>
+                        <th class="text-center">Bill</th>
+                        <th class="text-center">Paid</th>
+                        <th class="text-center">Outstanding</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for beneficiary in beneficiaries %}
+                    <tr>
+                        <td class="text-center">
+                            <input type="checkbox" class="beneficiary-checkbox" value="{{ beneficiary.pk }}" onchange="updateBulkDeleteBtn()">
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'beneficiary_detail' beneficiary.pk %}">{{ beneficiary.name }}</a>
+                        </td>
+                        <td class="text-center">
+                            {% if beneficiary.beneficiary_type == 'private' %}
+                            <span class="badge bg-primary">P</span>
+                            {% else %}
+                            <span class="badge bg-info">C</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">{{ beneficiary.phone|default:"-" }}</td>
+                        <td class="text-center">{{ beneficiary.village|default:"-" }}</td>
+                        <td class="text-center">{{ beneficiary.scheme|default:"-" }}</td>
+                        <td class="text-center">{{ beneficiary.household_count }}</td>
+                        <td class="text-center">{{ user.userprofile.get_currency_symbol}}{{ beneficiary.total_bill|floatformat:0 }}</td>
+                        <td class="text-center">{{ user.userprofile.get_currency_symbol}}{{ beneficiary.total_paid|floatformat:0 }}</td>
+                        <td class="text-center {% if beneficiary.total_outstanding > 0 %}text-danger fw-bold{% endif %}">{{ user.userprofile.get_currency_symbol}}{{ beneficiary.total_outstanding|floatformat:0 }}</td>
+                        <td class="text-center">
+                            {% if beneficiary.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'beneficiary_edit' beneficiary.pk %}" class="btn btn-xs btn-outline-primary" title="Edit"><i class="bi bi-pencil"></i></a>
+                            <a href="{% url 'beneficiary_delete' beneficiary.pk %}" class="btn btn-xs btn-outline-danger" title="Delete" onclick="return confirm('Delete this beneficiary?');"><i class="bi bi-trash"></i></a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="12" class="text-center text-muted py-3">No beneficiaries found</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <small class="text-muted">Total Beneficiaries: {{ beneficiaries.count }}</small>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('beneficiarySearch');
+    const suggestionsBox = document.getElementById('searchSuggestions');
+    let debounceTimer;
+
+    searchInput.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        const query = this.value.trim();
+        
+        if (query.length < 1) {
+            suggestionsBox.style.display = 'none';
+            return;
+        }
+
+        debounceTimer = setTimeout(function() {
+            fetch("{% url 'beneficiary_autocomplete' %}?q=" + encodeURIComponent(query))
+                .then(response => response.json())
+                .then(data => {
+                    suggestionsBox.innerHTML = '';
+                    
+                    if (data.results.length === 0) {
+                        suggestionsBox.innerHTML = '<div class="list-group-item text-muted text-center">No matches found</div>';
+                        suggestionsBox.style.display = 'block';
+                        return;
+                    }
+
+                    data.results.forEach(function(b) {
+                        const item = document.createElement('a');
+                        item.href = '#';
+                        item.className = 'list-group-item list-group-item-action';
+                        item.style.cursor = 'pointer';
+                        item.style.fontSize = '0.85rem';
+                        item.style.padding = '0.4rem 0.6rem';
+                        item.innerHTML = '<strong>' + escapeHtml(b.name) + '</strong>' +
+                            (b.phone ? '<br><small class="text-muted"><i class="bi bi-telephone"></i> ' + escapeHtml(b.phone) + '</small>' : '') +
+                            (b.village ? ' <small class="text-muted"><i class="bi bi-geo-alt"></i> ' + escapeHtml(b.village) + '</small>' : '') +
+                            (b.scheme ? ' <small class="text-muted"><i class="bi bi-building"></i> ' + escapeHtml(b.scheme) + '</small>' : '');
+                        
+                        item.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            searchInput.value = b.name;
+                            suggestionsBox.style.display = 'none';
+                        });
+                        
+                        suggestionsBox.appendChild(item);
+                    });
+                    
+                    suggestionsBox.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Autocomplete error:', error);
+                });
+        }, 200);
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+            suggestionsBox.style.display = 'none';
+        }
+    });
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+});
+</script>
+{% endblock %}

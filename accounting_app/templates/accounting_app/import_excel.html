@@ -1,0 +1,242 @@
+{% extends "accounting_app/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="page-title page-title-{{ user.userprofile.title_animation|default:'gradient' }}"><i class="bi bi-file-earmark-arrow-up"></i> Import Data from Excel</h1>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-upload"></i> Upload Excel File</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="model_type" class="form-label">Data Type</label>
+                            <select name="model_type" id="model_type" class="form-select" required>
+                                <optgroup label="Master Data">
+                                    <option value="beneficiary">Beneficiaries</option>
+                                    <option value="vendor">Vendors</option>
+                                    <option value="account">Accounts</option>
+                                </optgroup>
+                                <optgroup label="Transactions">
+                                    <option value="invoice">Invoices</option>
+                                    <option value="expense">Expenses</option>
+                                    <option value="payment">Payments</option>
+                                </optgroup>
+                                <optgroup label="Planning">
+                                    <option value="budget">Budgets</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="excel_file" class="form-label">Excel File (.xlsx)</label>
+                            <input type="file" name="excel_file" id="excel_file" class="form-control" accept=".xlsx,.xls" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-upload"></i> Import Data
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="bi bi-download"></i> Download Templates</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">Download template files with sample data to help you format your Excel imports correctly.</p>
+                    <div class="d-grid gap-2">
+                        <h6 class="text-muted small mb-2">Master Data</h6>
+                        <a href="{% url 'download_import_template' %}?type=beneficiary" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-people"></i> Beneficiary Template
+                        </a>
+                        <a href="{% url 'download_import_template' %}?type=vendor" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-building"></i> Vendor Template
+                        </a>
+                        <a href="{% url 'download_import_template' %}?type=account" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-wallet2"></i> Account Template
+                        </a>
+                        <hr>
+                        <h6 class="text-muted small mb-2">Transactions</h6>
+                        <a href="{% url 'download_import_template' %}?type=invoice" class="btn btn-outline-success btn-sm">
+                            <i class="bi bi-file-earmark-text"></i> Invoice Template
+                        </a>
+                        <a href="{% url 'download_import_template' %}?type=expense" class="btn btn-outline-success btn-sm">
+                            <i class="bi bi-receipt"></i> Expense Template
+                        </a>
+                        <a href="{% url 'download_import_template' %}?type=payment" class="btn btn-outline-success btn-sm">
+                            <i class="bi bi-credit-card"></i> Payment Template
+                        </a>
+                        <hr>
+                        <h6 class="text-muted small mb-2">Planning</h6>
+                        <a href="{% url 'download_import_template' %}?type=budget" class="btn btn-outline-warning btn-sm">
+                            <i class="bi bi-calculator"></i> Budget Template
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> Import Instructions</h5>
+                </div>
+                <div class="card-body">
+                    <h5>How to Import Data</h5>
+                    <ol class="mb-4">
+                        <li>Download the appropriate template for the data type you want to import.</li>
+                        <li>Open the template in Excel and fill in your data. <strong>Do not change the column headers.</strong></li>
+                        <li>Save the file as <code>.xlsx</code> format.</li>
+                        <li>Select the data type from the dropdown above.</li>
+                        <li>Click "Choose File" and select your Excel file.</li>
+                        <li>Click "Import Data" to upload and process the file.</li>
+                    </ol>
+
+                    <hr>
+
+                    <h5>Supported Data Types</h5>
+                    
+                    <div class="accordion" id="accordionPanels">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#panelsClients">
+                                    Clients
+                                </button>
+                            </h2>
+                            <div id="panelsClients" class="accordion-collapse collapse">
+                                <div class="accordion-body">
+                                    <p><strong>Fields:</strong> name, client_type, phone, village, scheme, country, tax_id, household_count, credit_limit, payment_terms, is_active</p>
+                                    <p><strong>Matching:</strong> Records are matched by <code>name</code>. If a client with the same name exists, it will be updated.</p>
+                                    <p><strong>client_type options:</strong> private, communal</p>
+                                    <p><strong>scheme options:</strong> Mangale, Nkala, Dodza, Milala</p>
+                                    <p><strong>is_active options:</strong> True, False</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#panelsVendors">
+                                    Vendors
+                                </button>
+                            </h2>
+                            <div id="panelsVendors" class="accordion-collapse collapse">
+                                <div class="accordion-body">
+                                    <p><strong>Fields:</strong> name, email, phone, address, city, country, tax_id, payment_terms, is_active</p>
+                                    <p><strong>Matching:</strong> Records are matched by <code>name</code>. If a vendor with the same name exists, it will be updated.</p>
+                                    <p><strong>is_active options:</strong> True, False</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#panelsAccounts">
+                                    Accounts
+                                </button>
+                            </h2>
+                            <div id="panelsAccounts" class="accordion-collapse collapse">
+                                <div class="accordion-body">
+                                    <p><strong>Fields:</strong> name, code, account_type, description, is_active</p>
+                                    <p><strong>Matching:</strong> Records are matched by <code>code</code>. If an account with the same code exists, it will be updated.</p>
+                                    <p><strong>account_type options:</strong> asset, liability, equity, revenue, expense</p>
+                                    <p><strong>is_active options:</strong> True, False</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#panelsInvoices">
+                                    Invoices
+                                </button>
+                            </h2>
+                            <div id="panelsInvoices" class="accordion-collapse collapse">
+                                <div class="accordion-body">
+                                    <p><strong>Fields:</strong> invoice_number, client, issue_date, due_date, status, household_count, cost_per_unit, tax_rate, discount, notes</p>
+                                    <p><strong>Matching:</strong> Records are matched by <code>invoice_number</code>. If an invoice with the same number exists, it will be updated.</p>
+                                    <p><strong>client:</strong> Enter the exact client name (must exist in system)</p>
+                                    <p><strong>status options:</strong> draft, sent, viewed, paid, partial, overdue, cancelled</p>
+                                    <p><strong>Date format:</strong> YYYY-MM-DD (e.g., 2026-01-15)</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#panelsExpenses">
+                                    Expenses
+                                </button>
+                            </h2>
+                            <div id="panelsExpenses" class="accordion-collapse collapse">
+                                <div class="accordion-body">
+                                    <p><strong>Fields:</strong> expense_number, description, amount, expense_date, vendor, account_code, is_paid</p>
+                                    <p><strong>Matching:</strong> Records are matched by <code>expense_number</code>. If an expense with the same number exists, it will be updated.</p>
+                                    <p><strong>vendor:</strong> Enter the exact vendor name (leave empty if none)</p>
+                                    <p><strong>account_code:</strong> Enter the account code (leave empty if none)</p>
+                                    <p><strong>is_paid options:</strong> True, False</p>
+                                    <p><strong>Date format:</strong> YYYY-MM-DD (e.g., 2026-01-15)</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#panelsPayments">
+                                    Payments
+                                </button>
+                            </h2>
+                            <div id="panelsPayments" class="accordion-collapse collapse">
+                                <div class="accordion-body">
+                                    <p><strong>Fields:</strong> client, amount, payment_date, payment_method, reference, invoice_number</p>
+                                    <p><strong>Note:</strong> Payments are always created as new records (no update matching)</p>
+                                    <p><strong>client:</strong> Enter the exact client name (required, must exist)</p>
+                                    <p><strong>invoice_number:</strong> Enter invoice number to link payment to invoice (optional)</p>
+                                    <p><strong>payment_method options:</strong> cash, bank_transfer, credit_card, check, other</p>
+                                    <p><strong>Date format:</strong> YYYY-MM-DD (e.g., 2026-01-15)</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#panelsBudgets">
+                                    Budgets
+                                </button>
+                            </h2>
+                            <div id="panelsBudgets" class="accordion-collapse collapse">
+                                <div class="accordion-body">
+                                    <p><strong>Fields:</strong> account_code, fiscal_year, amount, notes</p>
+                                    <p><strong>Matching:</strong> Records are matched by <code>account_code + fiscal_year</code>. If a budget for the same account and year exists, it will be updated.</p>
+                                    <p><strong>account_code:</strong> Enter the account code (must exist in system)</p>
+                                    <p><strong>fiscal_year:</strong> Enter a year (e.g., 2026)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> <strong>Important:</strong>
+                        <ul class="mb-0">
+                            <li>The first row of your Excel file must contain column headers matching the template.</li>
+                            <li>Data is matched by unique identifiers (name for clients/vendors, code for accounts, etc.).</li>
+                            <li>Existing records with matching identifiers will be updated, not duplicated.</li>
+                            <li>For transactions (Invoices, Expenses, Payments), related entities must already exist (clients, vendors, accounts).</li>
+                            <li>Only the first sheet of the workbook will be processed.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

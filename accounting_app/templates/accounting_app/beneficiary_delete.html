@@ -1,0 +1,16 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Delete Beneficiary{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+<h4>Delete Beneficiary</h4>
+        <h4 class="text-danger">Delete Beneficiary</h4>
+        <p>Are you sure you want to delete beneficiary <strong>{{ beneficiary.name }}</strong>?</p>
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Delete</button>
+            <a href="{% url 'beneficiary_list' %}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

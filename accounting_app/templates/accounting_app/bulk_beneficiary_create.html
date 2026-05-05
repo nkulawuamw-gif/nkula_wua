@@ -1,0 +1,113 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Bulk Create Beneficiaries{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>Bulk Create Beneficiaries</h4>
+    <a href="{% url 'beneficiary_list' %}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back to Beneficiaries</a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-people"></i> Create Multiple Beneficiaries</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Beneficiary Type <span class="text-danger">*</span></label>
+                            <select name="beneficiary_type" class="form-select" required>
+                                <option value="">-- Select Type --</option>
+                                <option value="private">Private</option>
+                                <option value="communal">Communal</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Scheme <span class="text-danger">*</span></label>
+                            <select name="scheme" class="form-select" required>
+                                <option value="">-- Select Scheme --</option>
+                                <option value="Mangale">Mangale</option>
+                                <option value="Nkala">Nkala</option>
+                                <option value="Dodza">Dodza</option>
+                                <option value="Milala">Milala</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Village <span class="text-danger">*</span></label>
+                            <input type="text" name="village" class="form-control" placeholder="Enter village name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Country</label>
+                            <input type="text" name="country" class="form-control" placeholder="e.g., Malawi" value="Malawi">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Household Count <span class="text-danger">*</span></label>
+                            <input type="number" name="household_count" class="form-control" value="0" min="0">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Default Credit Limit</label>
+                            <input type="number" name="credit_limit" class="form-control" value="0" min="0" step="0.01">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Beneficiary Names (one per line) <span class="text-danger">*</span></label>
+                        <textarea name="beneficiary_names" class="form-control" rows="15" placeholder="Enter beneficiary names, one per line:&#10;John Doe&#10;Jane Smith&#10;Village Committee&#10;..." required></textarea>
+                        <small class="text-muted">Enter each beneficiary name on a new line. These will be created with the settings above.</small>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Create Beneficiaries</button>
+                        <a href="{% url 'beneficiary_list' %}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-question-circle"></i> Help</h5>
+            </div>
+            <div class="card-body">
+                <h6>How to use bulk create:</h6>
+                <ol>
+                    <li>Select the beneficiary type (Private or Communal)</li>
+                    <li>Choose a scheme</li>
+                    <li>Enter village name</li>
+                    <li>Enter household count (must be greater than 0)</li>
+                    <li>Enter beneficiary names - one per line</li>
+                    <li>Click "Create Beneficiaries" to add all beneficiaries</li>
+                </ol>
+                
+                <hr>
+                
+                <h6>Alternative: Import from Excel</h6>
+                <p>If you have many beneficiaries in an Excel file, you can use the import feature.</p>
+                <a href="{% url 'bulk_beneficiary_import' %}" class="btn btn-success btn-sm">
+                    <i class="bi bi-file-earmark-arrow-up"></i> Import from Excel
+                </a>
+                
+                <hr>
+                
+                <h6>Download Template</h6>
+                <p>Get a sample Excel template to help you prepare your data.</p>
+                <a href="{% url 'download_beneficiary_template' %}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-download"></i> Download Template
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

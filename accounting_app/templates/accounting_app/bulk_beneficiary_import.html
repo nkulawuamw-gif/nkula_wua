@@ -1,0 +1,158 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Bulk Import Beneficiaries{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>Bulk Import Beneficiaries</h4>
+    <a href="{% url 'beneficiary_list' %}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back to Beneficiaries</a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-arrow-up"></i> Import Beneficiaries from Excel</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Select Excel File</label>
+                        <input type="file" name="excel_file" class="form-control" accept=".xlsx,.xls" required>
+                        <small class="text-muted">Supported formats: Excel (.xlsx, .xls)</small>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success"><i class="bi bi-upload"></i> Import Beneficiaries</button>
+                        <a href="{% url 'beneficiary_list' %}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-clipboard"></i> Clipboard Sample Format</h5>
+            </div>
+            <div class="card-body">
+                <p>You can also copy this sample data to Excel or Google Sheets:</p>
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>name</th>
+                                <th>beneficiary_type</th>
+                                <th>phone</th>
+                                <th>village</th>
+                                <th>scheme</th>
+                                <th>country</th>
+                                <th>tax_id</th>
+                                <th>household_count</th>
+                                <th>credit_limit</th>
+                                <th>payment_terms</th>
+                                <th>is_active</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Acme Corp</td>
+                                <td>private</td>
+                                <td>+265991234567</td>
+                                <td>Lilongwe</td>
+                                <td>Mangale</td>
+                                <td>Malawi</td>
+                                <td>TAX123</td>
+                                <td>50</td>
+                                <td>100000</td>
+                                <td>30</td>
+                                <td>True</td>
+                            </tr>
+                            <tr>
+                                <td>Village Water Committee</td>
+                                <td>communal</td>
+                                <td>+265991234568</td>
+                                <td>Mzuzu</td>
+                                <td>Nkala</td>
+                                <td>Malawi</td>
+                                <td></td>
+                                <td>200</td>
+                                <td>0</td>
+                                <td>30</td>
+                                <td>True</td>
+                            </tr>
+                            <tr>
+                                <td>John Doe</td>
+                                <td>private</td>
+                                <td>+265991234569</td>
+                                <td>Blantyre</td>
+                                <td>Dodza</td>
+                                <td>Malawi</td>
+                                <td></td>
+                                <td>25</td>
+                                <td>50000</td>
+                                <td>30</td>
+                                <td>True</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <button class="btn btn-outline-secondary btn-sm" onclick="copyTableToClipboard()">
+                    <i class="bi bi-clipboard"></i> Copy to Clipboard
+                </button>
+                <a href="{% url 'download_beneficiary_template' %}" class="btn btn-outline-primary btn-sm ms-2">
+                    <i class="bi bi-download"></i> Download Excel Template
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Instructions</h5>
+            </div>
+            <div class="card-body">
+                <h6>Required Column:</h6>
+                <ul>
+                    <li><strong>name</strong> - Beneficiary name (required)</li>
+                </ul>
+                
+                <h6>Optional Columns:</h6>
+                <ul>
+                    <li><strong>beneficiary_type</strong> - "private" or "communal" (default: private)</li>
+                    <li><strong>phone</strong> - Phone number</li>
+                    <li><strong>village</strong> - Village name</li>
+                    <li><strong>scheme</strong> - Scheme name (Mangale, Nkala, Dodza, Milala)</li>
+                    <li><strong>country</strong> - Country name</li>
+                    <li><strong>tax_id</strong> - Tax ID</li>
+                    <li><strong>household_count</strong> - Number of households</li>
+                    <li><strong>credit_limit</strong> - Credit limit amount</li>
+                    <li><strong>payment_terms</strong> - Payment terms in days (default: 30)</li>
+                    <li><strong>is_active</strong> - True or False</li>
+                </ul>
+                
+                <hr>
+                
+                <h6>Note:</h6>
+                <p>If a beneficiary with the same name already exists, it will be updated with the new values.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyTableToClipboard() {
+    const table = document.querySelector('table');
+    const range = document.createRange();
+    range.selectNode(table);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    document.execCommand('copy');
+    window.getSelection().removeAllRanges();
+    alert('Table copied to clipboard! You can paste it into Excel or Google Sheets.');
+}
+</script>
+{% endblock %}
