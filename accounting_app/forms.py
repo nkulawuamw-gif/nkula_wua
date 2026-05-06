@@ -248,3 +248,11 @@ class ReportForm(forms.ModelForm):
             "from_date": forms.DateInput(attrs={"type": "date"}),
             "to_date": forms.DateInput(attrs={"type": "date"}),
         }
+
+
+class EditUserForm(forms.ModelForm):
+    password = forms.CharField(required=False, widget=forms.PasswordInput())
+    
+    class Meta:
+        model = User
+        fields = ["username", "email", "password"]

@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('accounting_app', '0007_fix_communicationlog_column'),
+        ('accounting_app', '0006_rename_communicationlog_recipient_client'),
     ]
 
     operations = [

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Nkula Water Users Association - Accounting Management System
 
 A comprehensive Django-based accounting system for community water management organizations.
@@ -169,3 +170,6 @@ This project is proprietary software owned by Nkula Water Users Association.
 ---
 
 **Developed by Mantchombe Technology**
+=======
+# nkula_wua
+>>>>>>> 7621ad4e77a91170a6eff3552c315ecd589ea412

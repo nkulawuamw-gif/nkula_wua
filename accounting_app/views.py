@@ -33,7 +33,7 @@ from .models import (
 )
 from .forms import (
     AccountForm, BeneficiaryForm, VendorForm, InvoiceForm, InvoiceItemForm,
-    ExpenseForm, ExpenseItemForm, PaymentForm, JournalEntryForm, JournalEntryLineForm, BudgetForm, BudgetLineFormSet, UserForm, UserProfileForm,
+    ExpenseForm, ExpenseItemForm, PaymentForm, JournalEntryForm, JournalEntryLineForm, BudgetForm, BudgetLineFormSet, UserForm, UserProfileForm, EditUserForm,
     SchemeForm, VillageForm, VillagePopulationForm,
     BoardOfTrusteesForm, GeneralAssemblyMemberForm, EmployeeForm, ReportForm
 )
@@ -1057,7 +1057,7 @@ def invoice_create(request):
                     "user": request.user
                 })
             
-            client = get_object_or_404(Client, pk=beneficiary_id)
+            beneficiary = get_object_or_404(Beneficiary, pk=beneficiary_id)
             
             subtotal = household_count * cost_per_unit
             tax_amount = subtotal * (tax_rate / 100)
@@ -3636,10 +3636,10 @@ def theme_settings(request):
 
 @login_required
 def send_sms(request, beneficiary_id):
-    client = get_object_or_404(Client, pk=beneficiary_id)
+    beneficiary = get_object_or_404(Beneficiary, pk=beneficiary_id)
     
     if request.method == "POST":
-        phone = request.POST.get("phone", client.phone)
+        phone = request.POST.get("phone", beneficiary.phone)
         message = request.POST.get("message", "")
         
         if not phone:
@@ -3856,14 +3856,6 @@ def user_profile(request):
     if not hasattr(request.user, 'userprofile'):
         user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
     return render(request, "accounting_app/user_profile.html")
-
-
-class EditUserForm(forms.ModelForm):
-    password = forms.CharField(required=False, widget=forms.PasswordInput())
-    
-    class Meta:
-        model = User
-        fields = ["username", "email", "password"]
 
 
 @login_required
@@ -4556,7 +4548,7 @@ def opening_balance_edit(request, beneficiary_id):
         messages.error(request, "You don't have permission to edit opening balances.")
         return redirect('dashboard')
     
-    client = get_object_or_404(Client, pk=beneficiary_id)
+    beneficiary = get_object_or_404(Beneficiary, pk=beneficiary_id)
     current_year = timezone.now().year
     fiscal_year = request.GET.get('fiscal_year', current_year)
     try:
