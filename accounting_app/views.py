@@ -28,8 +28,8 @@ from .models import (
     Account, Beneficiary, Vendor, Invoice, InvoiceItem, Expense, ExpenseItem,
     JournalEntry, JournalEntryLine, Payment, Budget, ActivityLog, UserProfile,
     OpeningBalance, YearEndRollover, Scheme, Village, VillagePopulation,
-    BoardOfTrustees, GeneralAssemblyMember, Employee, Report, EmployeeSalary,
-    CommunicationLog, UserMessage, UserCall
+    BoardOfTrustees, GeneralAssemblyMember, Employee, Report, BeneficiaryHistory,
+    BeneficiaryStatusLog, LoginSession
 )
 from .forms import (
     AccountForm, BeneficiaryForm, VendorForm, InvoiceForm, InvoiceItemForm,
@@ -37,6 +37,26 @@ from .forms import (
     SchemeForm, VillageForm, VillagePopulationForm,
     BoardOfTrusteesForm, GeneralAssemblyMemberForm, EmployeeForm, ReportForm
 )
+import json
+
+
+def save_deleted_record(obj, user):
+    model_name = obj.__class__.__name__
+    data = {}
+    for field in obj._meta.fields:
+        value = getattr(obj, field.name, None)
+        if hasattr(value, 'isoformat'):
+            value = value.isoformat()
+        elif hasattr(value, 'pk'):
+            value = value.pk
+        data[field.name] = value
+    
+    DeletedRecord.objects.create(
+        model_name=model_name,
+        object_id=str(obj.pk),
+        data=json.dumps(data, default=str),
+        deleted_by=user
+    )
 
 
 def landing_page(request):
@@ -57,7 +77,11 @@ def landing_page(request):
 
 @login_required
 def superuser_view(request):
-    if not (request.user.is_superuser or (hasattr(request.user, 'userprofile') and request.user.userprofile.role in ['admin', 'manager'])):
+    if not (request.user.is_superuser or (hasattr(request.user, 'userprofile') and (
+        request.user.userprofile.role in ['admin', 'manager'] or
+        request.user.userprofile.has_settings_access or
+        request.user.userprofile.has_user_management_access
+    ))):
         messages.error(request, "Access denied. Admin access required.")
         return redirect("dashboard")
     return render(request, "accounting_app/superuser_view.html")
@@ -89,27 +113,51 @@ def generate_expense_number():
 
 def login_view(request):
     if request.user.is_authenticated:
-        if request.user.is_superuser or request.user.userprofile.role in ['admin', 'manager']:
-            return redirect("superuser_view")
+        if hasattr(request.user, 'userprofile'):
+            p = request.user.userprofile
+            if p.role in ('admin', 'manager') or p.is_superuser:
+                return redirect("superuser_view")
+            return redirect("dashboard")
         return redirect("dashboard")
     if request.method == "POST":
         username = request.POST.get("username")
         password = request.POST.get("password")
         user = authenticate(request, username=username, password=password)
         if user is not None:
-            if user.is_staff:
-                login(request, user)
-                messages.success(request, f"Welcome back, {user.username}!")
-                if user.is_superuser or (hasattr(user, 'userprofile') and user.userprofile.role in ['admin', 'manager']):
+            login(request, user)
+            
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            ip = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
+            user_agent = request.META.get('HTTP_USER_AGENT', '')
+            device_info = LoginSession.parse_user_agent(user_agent)
+            
+            LoginSession.objects.create(
+                user=user,
+                session_key=request.session.session_key,
+                ip_address=ip,
+                user_agent=user_agent,
+                device_info=device_info
+            )
+            
+            messages.success(request, f"Welcome back, {user.username}!")
+            if hasattr(user, 'userprofile'):
+                p = user.userprofile
+                if p.role in ('admin', 'manager') or user.is_superuser:
                     return redirect("superuser_view")
                 return redirect("dashboard")
-            messages.error(request, "Access denied. Admin/Staff credentials required.")
+            return redirect("dashboard")
         else:
             messages.error(request, "Invalid username or password")
     return render(request, "accounting_app/login.html")
 
 
 def logout_view(request):
+    session_key = request.session.session_key
+    if session_key:
+        LoginSession.objects.filter(session_key=session_key, is_active=True).update(
+            logout_time=timezone.now(),
+            is_active=False
+        )
     logout(request)
     messages.success(request, "You have been logged out")
     return redirect("login")
@@ -149,6 +197,8 @@ def dashboard(request):
     active_clients = Beneficiary.objects.filter(is_active=True).count()
     inactive_clients = Beneficiary.objects.filter(is_active=False).count()
     total_households = Beneficiary.objects.aggregate(total=Sum("household_count"))["total"] or 0
+    total_private_households = Beneficiary.objects.filter(beneficiary_type__iexact='private').aggregate(total=Sum("household_count"))["total"] or 0
+    total_communal_households = Beneficiary.objects.filter(beneficiary_type__iexact='communal').aggregate(total=Sum("household_count"))["total"] or 0
     
     scheme_data = []
     for scheme_code, scheme_name in Beneficiary.SCHEME_CHOICES:
@@ -254,13 +304,11 @@ def dashboard(request):
         "outstanding": total_invoiced_all - total_revenue_all,
         "outstanding_invoices": outstanding_invoices,
         "overdue_invoices": overdue_invoices,
-        "total_clients": total_clients,
-        "private_clients": private_beneficiaries_count,
-        "communal_clients": communal_beneficiaries_count,
+        "total_beneficiaries": total_clients,
         "private_beneficiaries": private_beneficiaries_count,
         "communal_beneficiaries": communal_beneficiaries_count,
-        "total_private_households": Beneficiary.objects.filter(beneficiary_type__iexact='private').aggregate(total=Sum("household_count"))["total"] or 0,
-        "total_communal_households": Beneficiary.objects.filter(beneficiary_type__iexact='communal').aggregate(total=Sum("household_count"))["total"] or 0,
+        "total_private_households": total_private_households,
+        "total_communal_households": total_communal_households,
         "active_clients": active_clients,
         "inactive_clients": inactive_clients,
         "total_households": total_households,
@@ -288,7 +336,6 @@ def dashboard(request):
         "total_collections": total_revenue_all,
         "total_overdue": outstanding_invoices,
         "available_balance": total_revenue_all - total_expenses,
-        "total_beneficiaries": total_clients,
     }
     return render(request, "accounting_app/dashboard.html", context)
 
@@ -338,6 +385,7 @@ def account_delete(request, pk):
             messages.error(request, f"Cannot delete '{account.name}' because it has linked expenses. Please reassign or remove the linked expenses first.")
             return redirect("account_list")
         
+        save_deleted_record(account, request.user)
         account.delete()
         messages.success(request, "Account deleted successfully")
         return redirect("account_list")
@@ -472,11 +520,31 @@ def beneficiary_create(request):
 @login_required
 def beneficiary_edit(request, pk):
     beneficiary = get_object_or_404(Beneficiary, pk=pk)
+    # Get old status from database to ensure accuracy
+    old_status = Beneficiary.objects.get(pk=pk).is_active
+    
     if request.method == "POST":
         form = BeneficiaryForm(request.POST, instance=beneficiary)
         if form.is_valid():
-            form.save()
-            messages.success(request, "Beneficiary updated successfully!")
+            # Determine new status - checkbox unchecked means not in POST
+            new_status = 'is_active' in request.POST
+            
+            # Save the beneficiary
+            beneficiary = form.save(commit=False)
+            beneficiary.is_active = new_status
+            beneficiary.save()
+            
+            # Always create a log entry for status changes
+            if old_status != new_status:
+                BeneficiaryStatusLog.objects.create(
+                    beneficiary=beneficiary,
+                    user=request.user if request.user.is_authenticated else None,
+                    status='activated' if new_status else 'deactivated'
+                )
+                messages.success(request, f"Beneficiary {beneficiary.name} {'activated' if new_status else 'deactivated'} successfully!")
+            else:
+                messages.success(request, "Beneficiary updated successfully!")
+            
             return redirect("beneficiary_list")
         else:
             messages.error(request, "Please correct the errors below.")
@@ -488,6 +556,7 @@ def beneficiary_edit(request, pk):
 def beneficiary_delete(request, pk):
     beneficiary = get_object_or_404(Beneficiary, pk=pk)
     if request.method == "POST":
+        save_deleted_record(beneficiary, request.user)
         beneficiary.delete()
         messages.success(request, "Beneficiary deleted successfully")
         return redirect("beneficiary_list")
@@ -497,8 +566,15 @@ def beneficiary_delete(request, pk):
 @login_required
 def beneficiary_toggle_status(request, pk):
     beneficiary = get_object_or_404(Beneficiary, pk=pk)
+    # Toggle the status
     beneficiary.is_active = not beneficiary.is_active
     beneficiary.save()
+    # Log the status change with user info
+    BeneficiaryStatusLog.objects.create(
+        beneficiary=beneficiary,
+        user=request.user if request.user.is_authenticated else None,
+        status='activated' if beneficiary.is_active else 'deactivated'
+    )
     status = "activated" if beneficiary.is_active else "deactivated"
     messages.success(request, f"Client {beneficiary.name} has been {status}")
     return redirect("beneficiary_list")
@@ -509,10 +585,19 @@ def beneficiary_detail(request, pk):
     beneficiary = get_object_or_404(Beneficiary, pk=pk)
     invoices = beneficiary.invoices.all()
     payments = beneficiary.payments.all()
+    status_logs = beneficiary.status_logs.all()
+
+    # Get latest activation and deactivation dates
+    latest_activated = status_logs.filter(status='activated').order_by('-changed_at').first()
+    latest_deactivated = status_logs.filter(status='deactivated').order_by('-changed_at').first()
+
     return render(request, "accounting_app/beneficiary_detail.html", {
         "beneficiary": beneficiary,
         "invoices": invoices,
         "payments": payments,
+        "status_logs": status_logs,
+        "latest_activated": latest_activated,
+        "latest_deactivated": latest_deactivated,
     })
 
 
@@ -1002,8 +1087,6 @@ def invoice_list(request):
         
         # Calculate summary statistics
         total_amount = sum(inv.total_amount for inv in invoice_list)
-        paid_count = sum(1 for inv in invoice_list if inv.status == 'paid')
-        outstanding_count = sum(1 for inv in invoice_list if inv.status in ['sent', 'partial', 'overdue'])
         
         return render(request, "accounting_app/invoice_list.html", {
             "invoices": invoice_list, 
@@ -1011,8 +1094,6 @@ def invoice_list(request):
             "has_bulk_invoices": has_bulk_invoices,
             "first_bulk_group": first_bulk_group,
             "total_amount": total_amount,
-            "paid_count": paid_count,
-            "outstanding_count": outstanding_count
         })
     except Exception as e:
         # Fallback - just show basic invoice list
@@ -1023,8 +1104,6 @@ def invoice_list(request):
             "has_bulk_invoices": False,
             "first_bulk_group": None,
             "total_amount": 0,
-            "paid_count": 0,
-            "outstanding_count": 0
         })
 
 
@@ -1378,6 +1457,7 @@ def invoice_delete_item(request, pk, item_pk):
 def invoice_delete(request, pk):
     invoice = get_object_or_404(Invoice, pk=pk)
     if request.method == "POST":
+        save_deleted_record(invoice, request.user)
         invoice.delete()
         messages.success(request, "Invoice deleted")
         return redirect("invoice_list")
@@ -1602,6 +1682,7 @@ def expense_edit(request, pk):
 def expense_delete(request, pk):
     expense = get_object_or_404(Expense, pk=pk)
     if request.method == "POST":
+        save_deleted_record(expense, request.user)
         if expense.account:
             expense.account.balance += expense.amount
             expense.account.save()
@@ -3566,6 +3647,7 @@ def budget_edit(request, pk):
 def budget_delete(request, pk):
     budget = get_object_or_404(Budget, pk=pk)
     if request.method == "POST":
+        save_deleted_record(budget, request.user)
         budget.delete()
         messages.success(request, "Budget deleted successfully")
         return redirect("budget_list")
@@ -3635,6 +3717,212 @@ def theme_settings(request):
 
 
 @login_required
+def landing_page_settings(request):
+    if not (request.user.userprofile.role == "admin" or request.user.userprofile.has_settings_access):
+        messages.error(request, "You don't have permission to access landing page settings.")
+        return redirect('dashboard')
+    
+    settings_obj = LandingPageSettings.objects.filter(is_active=True).first()
+    if not settings_obj:
+        settings_obj = LandingPageSettings.objects.create()
+    
+    if request.method == "POST":
+        if request.POST.get('action') == 'update_settings':
+            settings_obj.site_name = request.POST.get('site_name', settings_obj.site_name)
+            settings_obj.hero_title = request.POST.get('hero_title', settings_obj.hero_title)
+            settings_obj.hero_subtitle = request.POST.get('hero_subtitle', settings_obj.hero_subtitle)
+            settings_obj.hero_description = request.POST.get('hero_description', settings_obj.hero_description)
+            settings_obj.about_title = request.POST.get('about_title', settings_obj.about_title)
+            settings_obj.about_subtitle = request.POST.get('about_subtitle', settings_obj.about_subtitle)
+            settings_obj.about_content = request.POST.get('about_content', settings_obj.about_content)
+            settings_obj.vision_title = request.POST.get('vision_title', settings_obj.vision_title)
+            settings_obj.vision_subtitle = request.POST.get('vision_subtitle', settings_obj.vision_subtitle)
+            settings_obj.vision_text = request.POST.get('vision_text', settings_obj.vision_text)
+            settings_obj.mission_text = request.POST.get('mission_text', settings_obj.mission_text)
+            settings_obj.values_text = request.POST.get('values_text', settings_obj.values_text)
+            settings_obj.location_title = request.POST.get('location_title', settings_obj.location_title)
+            settings_obj.location_subtitle = request.POST.get('location_subtitle', settings_obj.location_subtitle)
+            settings_obj.location_address = request.POST.get('location_address', settings_obj.location_address)
+            settings_obj.location_description = request.POST.get('location_description', settings_obj.location_description)
+            settings_obj.contact_phone = request.POST.get('contact_phone', settings_obj.contact_phone)
+            settings_obj.contact_email = request.POST.get('contact_email', settings_obj.contact_email)
+            settings_obj.contact_whatsapp = request.POST.get('contact_whatsapp', settings_obj.contact_whatsapp)
+            settings_obj.contact_whatsapp_raw = request.POST.get('contact_whatsapp_raw', settings_obj.contact_whatsapp_raw)
+            settings_obj.projects_title = request.POST.get('projects_title', settings_obj.projects_title)
+            settings_obj.projects_subtitle = request.POST.get('projects_subtitle', settings_obj.projects_subtitle)
+            settings_obj.projects_intro = request.POST.get('projects_intro', settings_obj.projects_intro)
+            settings_obj.projects_items = request.POST.get('projects_items', settings_obj.projects_items)
+            settings_obj.projects_outro = request.POST.get('projects_outro', settings_obj.projects_outro)
+            settings_obj.cta_title = request.POST.get('cta_title', settings_obj.cta_title)
+            settings_obj.cta_description = request.POST.get('cta_description', settings_obj.cta_description)
+            settings_obj.footer_text = request.POST.get('footer_text', settings_obj.footer_text)
+            settings_obj.primary_color = request.POST.get('primary_color', settings_obj.primary_color)
+            settings_obj.secondary_color = request.POST.get('secondary_color', settings_obj.secondary_color)
+            settings_obj.hero_gradient_start = request.POST.get('hero_gradient_start', settings_obj.hero_gradient_start)
+            settings_obj.hero_gradient_mid = request.POST.get('hero_gradient_mid', settings_obj.hero_gradient_mid)
+            settings_obj.hero_gradient_end = request.POST.get('hero_gradient_end', settings_obj.hero_gradient_end)
+            settings_obj.section_bg_light = request.POST.get('section_bg_light', settings_obj.section_bg_light)
+            settings_obj.text_primary = request.POST.get('text_primary', settings_obj.text_primary)
+            settings_obj.text_secondary = request.POST.get('text_secondary', settings_obj.text_secondary)
+            settings_obj.cta_gradient_start = request.POST.get('cta_gradient_start', settings_obj.cta_gradient_start)
+            settings_obj.cta_gradient_end = request.POST.get('cta_gradient_end', settings_obj.cta_gradient_end)
+            settings_obj.whatsapp_color = request.POST.get('whatsapp_color', settings_obj.whatsapp_color)
+            settings_obj.water_sources_title = request.POST.get('water_sources_title', settings_obj.water_sources_title)
+            settings_obj.water_sources_subtitle = request.POST.get('water_sources_subtitle', settings_obj.water_sources_subtitle)
+            settings_obj.water_sources_images = request.POST.get('water_sources_images', settings_obj.water_sources_images)
+            settings_obj.news_title = request.POST.get('news_title', settings_obj.news_title)
+            settings_obj.news_subtitle = request.POST.get('news_subtitle', settings_obj.news_subtitle)
+            settings_obj.news_content = request.POST.get('news_content', settings_obj.news_content)
+            settings_obj.news_intro = request.POST.get('news_intro', settings_obj.news_intro)
+            settings_obj.meeting_objectives_title = request.POST.get('meeting_objectives_title', settings_obj.meeting_objectives_title)
+            settings_obj.meeting_objectives_subtitle = request.POST.get('meeting_objectives_subtitle', settings_obj.meeting_objectives_subtitle)
+            settings_obj.meeting_objectives_intro = request.POST.get('meeting_objectives_intro', settings_obj.meeting_objectives_intro)
+            settings_obj.meeting_objectives_items = request.POST.get('meeting_objectives_items', settings_obj.meeting_objectives_items)
+            settings_obj.schemes_title = request.POST.get('schemes_title', settings_obj.schemes_title)
+            settings_obj.schemes_subtitle = request.POST.get('schemes_subtitle', settings_obj.schemes_subtitle)
+            settings_obj.schemes_list = request.POST.get('schemes_list', settings_obj.schemes_list)
+            settings_obj.villages_title = request.POST.get('villages_title', settings_obj.villages_title)
+            settings_obj.villages_subtitle = request.POST.get('villages_subtitle', settings_obj.villages_subtitle)
+            settings_obj.villages_list = request.POST.get('villages_list', settings_obj.villages_list)
+            settings_obj.gallery_title = request.POST.get('gallery_title', settings_obj.gallery_title)
+            settings_obj.gallery_subtitle = request.POST.get('gallery_subtitle', settings_obj.gallery_subtitle)
+            settings_obj.save()
+            messages.success(request, "Landing page settings saved successfully!")
+        return redirect("landing_page_settings")
+    
+    gallery_images = GalleryImage.objects.all().order_by('-uploaded_at')
+    services = Service.objects.all().order_by('order')
+    
+    return render(request, "accounting_app/landing_page_settings.html", {
+        "settings": settings_obj,
+        "gallery_images": gallery_images,
+        "services": services
+    })
+
+
+@login_required
+def gallery_image_create(request):
+    if not (request.user.userprofile.role == "admin" or request.user.userprofile.has_settings_access):
+        messages.error(request, "You don't have permission.")
+        return redirect('landing_page_settings')
+    
+    if request.method == "POST":
+        title = request.POST.get("title", "")
+        description = request.POST.get("description", "")
+        image = request.FILES.get("image")
+        
+        if image:
+            GalleryImage.objects.create(
+                title=title,
+                description=description,
+                image=image
+            )
+            messages.success(request, "Gallery image added successfully!")
+        else:
+            messages.error(request, "Image file is required.")
+    
+    return redirect("landing_page_settings")
+
+
+@login_required
+def gallery_image_edit(request, pk):
+    if not (request.user.userprofile.role == "admin" or request.user.userprofile.has_settings_access):
+        messages.error(request, "You don't have permission.")
+        return redirect('landing_page_settings')
+    
+    image = get_object_or_404(GalleryImage, pk=pk)
+    
+    if request.method == "POST":
+        image.title = request.POST.get("title", "")
+        image.description = request.POST.get("description", "")
+        image.is_active = request.POST.get("is_active") == "on"
+        new_image = request.FILES.get("image")
+        if new_image:
+            image.image = new_image
+        image.save()
+        messages.success(request, "Gallery image updated successfully!")
+    
+    return redirect("landing_page_settings")
+
+
+@login_required
+def gallery_image_delete(request, pk):
+    if not (request.user.userprofile.role == "admin" or request.user.userprofile.has_settings_access):
+        messages.error(request, "You don't have permission.")
+        return redirect('landing_page_settings')
+    
+    image = get_object_or_404(GalleryImage, pk=pk)
+    save_deleted_record(image, request.user)
+    image.delete()
+    messages.success(request, "Gallery image deleted successfully!")
+    return redirect("landing_page_settings")
+
+
+@login_required
+def service_create(request):
+    if not (request.user.userprofile.role == "admin" or request.user.userprofile.has_settings_access):
+        messages.error(request, "You don't have permission.")
+        return redirect('landing_page_settings')
+    
+    if request.method == "POST":
+        title = request.POST.get("title", "")
+        description = request.POST.get("description", "")
+        caption = request.POST.get("caption", "")
+        image = request.FILES.get("image")
+        order = request.POST.get("order", 0)
+        
+        if image and title:
+            Service.objects.create(
+                title=title,
+                description=description,
+                caption=caption,
+                image=image,
+                order=int(order)
+            )
+            messages.success(request, "Service added successfully!")
+        else:
+            messages.error(request, "Title and image are required.")
+    
+    return redirect("landing_page_settings")
+
+
+@login_required
+def service_edit(request, pk):
+    if not (request.user.userprofile.role == "admin" or request.user.userprofile.has_settings_access):
+        messages.error(request, "You don't have permission.")
+        return redirect('landing_page_settings')
+    
+    service = get_object_or_404(Service, pk=pk)
+    
+    if request.method == "POST":
+        service.title = request.POST.get("title", service.title)
+        service.description = request.POST.get("description", service.description)
+        service.caption = request.POST.get("caption", service.caption)
+        service.order = int(request.POST.get("order", service.order))
+        service.is_active = request.POST.get("is_active") == "on"
+        new_image = request.FILES.get("image")
+        if new_image:
+            service.image = new_image
+        service.save()
+        messages.success(request, "Service updated successfully!")
+    
+    return redirect("landing_page_settings")
+
+
+@login_required
+def service_delete(request, pk):
+    if not (request.user.userprofile.role == "admin" or request.user.userprofile.has_settings_access):
+        messages.error(request, "You don't have permission.")
+        return redirect('landing_page_settings')
+    
+    service = get_object_or_404(Service, pk=pk)
+    save_deleted_record(service, request.user)
+    service.delete()
+    messages.success(request, "Service deleted successfully!")
+    return redirect("landing_page_settings")
+
+
+@login_required
 def send_sms(request, beneficiary_id):
     beneficiary = get_object_or_404(Beneficiary, pk=beneficiary_id)
     
@@ -3673,7 +3961,7 @@ def send_sms(request, beneficiary_id):
 def user_list(request):
     if not hasattr(request.user, 'userprofile'):
         user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
-    if not request.user.userprofile.can_manage_users():
+    if not (request.user.userprofile.role == "admin" or request.user.userprofile.can_manage_users):
         messages.error(request, "You don't have permission to view users.")
         return redirect('dashboard')
     
@@ -3682,10 +3970,67 @@ def user_list(request):
 
 
 @login_required
+def login_sessions(request):
+    if not hasattr(request.user, 'userprofile'):
+        user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    if not (request.user.userprofile.role == "admin" or request.user.userprofile.can_manage_users):
+        messages.error(request, "You don't have permission to view login sessions.")
+        return redirect('dashboard')
+    
+    sessions = LoginSession.objects.select_related('user').all()
+    active_sessions = sessions.filter(is_active=True)
+    
+    return render(request, "accounting_app/login_sessions.html", {
+        "sessions": sessions,
+        "active_sessions": active_sessions
+    })
+
+
+@login_required
+def data_recovery(request):
+    if not hasattr(request.user, 'userprofile'):
+        user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    if not (request.user.userprofile.role == "admin" or request.user.userprofile.can_manage_users):
+        messages.error(request, "You don't have permission to access data recovery.")
+        return redirect('dashboard')
+    
+    deleted_records = DeletedRecord.objects.all()
+    recovered_records = deleted_records.filter(recovered=True)
+    pending_records = deleted_records.filter(recovered=False)
+    
+    if request.method == "POST":
+        record_id = request.POST.get("record_id")
+        action = request.POST.get("action")
+        
+        if record_id and action == "recover":
+            record = get_object_or_404(DeletedRecord, pk=record_id)
+            if not record.recovered:
+                obj = record.recover()
+                if obj:
+                    messages.success(request, f"Successfully recovered {record.model_name} #{record.object_id}")
+                else:
+                    messages.error(request, f"Failed to recover {record.model_name} #{record.object_id}. The data may be corrupted or the model no longer exists.")
+            else:
+                messages.warning(request, "This record has already been recovered.")
+        elif record_id and action == "permanent_delete":
+            record = get_object_or_404(DeletedRecord, pk=record_id)
+            record.delete()
+            messages.success(request, "Record permanently deleted.")
+    
+    return render(request, "accounting_app/data_recovery.html", {
+        "deleted_records": deleted_records,
+        "recovered_records": recovered_records,
+        "pending_records": pending_records,
+        "pending_count": pending_records.count(),
+        "recovered_count": recovered_records.count(),
+    })
+
+
+@login_required
 def user_toggle_status(request, pk):
     if not hasattr(request.user, 'userprofile'):
         user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
-    if not request.user.userprofile.can_manage_users():
+    if not (request.user.userprofile.role == "admin" or request.user.userprofile.can_manage_users):
         messages.error(request, "You don't have permission to manage users.")
         return redirect('dashboard')
     
@@ -3711,7 +4056,7 @@ def user_toggle_status(request, pk):
 def user_create(request):
     if not hasattr(request.user, 'userprofile'):
         user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
-    if not request.user.userprofile.can_manage_users():
+    if not (request.user.userprofile.role == "admin" or request.user.userprofile.can_manage_users):
         messages.error(request, "You don't have permission to create users.")
         return redirect('dashboard')
     
@@ -3723,6 +4068,22 @@ def user_create(request):
             password = form.cleaned_data["password"]
             role = request.POST.get("role", "viewer")
             
+            perm_fields = [
+                'can_access_dashboard', 'can_view_beneficiaries', 'can_edit_beneficiaries',
+                'can_delete_beneficiaries', 'can_view_invoices', 'can_edit_invoices',
+                'can_delete_invoices', 'can_view_payments', 'can_edit_payments',
+                'can_delete_payments', 'can_view_expenses', 'can_edit_expenses',
+                'can_delete_expenses', 'can_view_reports', 'can_export_reports',
+                'can_view_journal', 'can_edit_journal', 'can_view_budgets',
+                'can_edit_budgets', 'can_delete_budgets', 'can_access_management',
+                'can_view_employees', 'can_edit_employees', 'can_communicate',
+                'can_manage_users', 'can_access_settings'
+            ]
+            
+            permissions = {}
+            for field in perm_fields:
+                permissions[field] = request.POST.get(field) == 'on'
+            
             try:
                 user = User.objects.create_user(
                     username=username,
@@ -3733,7 +4094,8 @@ def user_create(request):
                 UserProfile.objects.create(
                     user=user,
                     role=role,
-                    company_name=request.user.userprofile.company_name or "My Company"
+                    company_name=request.user.userprofile.company_name or "My Company",
+                    **permissions
                 )
                 
                 try:
@@ -3775,7 +4137,7 @@ Best regards,
 def user_edit(request, pk):
     if not hasattr(request.user, 'userprofile'):
         user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
-    if not request.user.userprofile.can_manage_users():
+    if not (request.user.userprofile.role == "admin" or request.user.userprofile.can_manage_users):
         messages.error(request, "You don't have permission to edit users.")
         return redirect('dashboard')
     
@@ -3793,6 +4155,22 @@ def user_edit(request, pk):
         
         user.save()
         profile.role = request.POST.get("role", "viewer")
+        
+        perm_fields = [
+            'can_access_dashboard', 'can_view_beneficiaries', 'can_edit_beneficiaries',
+            'can_delete_beneficiaries', 'can_view_invoices', 'can_edit_invoices',
+            'can_delete_invoices', 'can_view_payments', 'can_edit_payments',
+            'can_delete_payments', 'can_view_expenses', 'can_edit_expenses',
+            'can_delete_expenses', 'can_view_reports', 'can_export_reports',
+            'can_view_journal', 'can_edit_journal', 'can_view_budgets',
+            'can_edit_budgets', 'can_delete_budgets', 'can_access_management',
+            'can_view_employees', 'can_edit_employees', 'can_communicate',
+            'can_manage_users', 'can_access_settings'
+        ]
+        
+        for field in perm_fields:
+            setattr(profile, field, request.POST.get(field) == 'on')
+        
         profile.save()
         
         if new_password and user.email:
@@ -3833,7 +4211,7 @@ Best regards,
 def user_delete(request, pk):
     if not hasattr(request.user, 'userprofile'):
         user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
-    if not request.user.userprofile.can_manage_users():
+    if not (request.user.userprofile.role == "admin" or request.user.userprofile.can_manage_users):
         messages.error(request, "You don't have permission to delete users.")
         return redirect('dashboard')
     
@@ -3844,11 +4222,67 @@ def user_delete(request, pk):
     
     if request.method == "POST":
         username = user.username
+        save_deleted_record(user, request.user)
         user.delete()
         messages.success(request, f"User '{username}' deleted successfully")
         return redirect("user_list")
     
     return render(request, "accounting_app/user_delete.html", {"delete_user": user})
+
+
+@login_required
+def user_reset_password(request, pk):
+    if not hasattr(request.user, 'userprofile'):
+        user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    if not (request.user.userprofile.role == "admin" or request.user.userprofile.can_manage_users):
+        messages.error(request, "You don't have permission to reset user passwords.")
+        return redirect('dashboard')
+    
+    user = get_object_or_404(User, pk=pk)
+    if request.user.pk == user.pk:
+        messages.error(request, "You cannot reset your own password from here. Use profile settings.")
+        return redirect("user_list")
+    
+    if request.method == "POST":
+        new_password = request.POST.get("new_password", "")
+        if not new_password or len(new_password) < 4:
+            messages.error(request, "Password must be at least 4 characters long.")
+            return redirect("user_list")
+        
+        user.set_password(new_password)
+        user.save()
+        
+        messages.success(request, f"Password reset for user '{user.username}'. New password set.")
+        
+        if user.email:
+            try:
+                send_mail(
+                    subject=f"Password Reset - {request.user.userprofile.company_name or 'Accounting System'}",
+                    message=f"""
+Dear {user.username},
+
+Your password has been reset by an administrator.
+
+Your new login credentials are:
+Username: {user.username}
+New Password: {new_password}
+
+Please login at: {request.build_absolute_uri('/login/')}
+and change your password immediately after logging in.
+
+Best regards,
+{request.user.userprofile.company_name or 'Accounting System'}
+                    """,
+                    from_email=request.user.userprofile.company_name + " <noreply@" + request.get_host() + ">",
+                    recipient_list=[user.email],
+                    fail_silently=True,
+                )
+            except:
+                pass
+        
+        return redirect("user_list")
+    
+    return render(request, "accounting_app/user_reset_password.html", {"target_user": user})
 
 
 @login_required
@@ -4944,6 +5378,7 @@ def scheme_delete(request, pk):
     
     scheme = get_object_or_404(Scheme, pk=pk)
     if request.method == 'POST':
+        save_deleted_record(scheme, request.user)
         scheme.delete()
         messages.success(request, f"Scheme '{scheme.name}' deleted successfully")
         return redirect('manage_schemes')
@@ -5004,6 +5439,7 @@ def village_delete(request, pk):
     
     village = get_object_or_404(Village, pk=pk)
     if request.method == 'POST':
+        save_deleted_record(village, request.user)
         village.delete()
         messages.success(request, f"Village '{village.name}' deleted successfully")
         return redirect('manage_villages')
@@ -5087,6 +5523,7 @@ def board_of_trustees_edit(request, pk):
 def board_of_trustees_delete(request, pk):
     member = get_object_or_404(BoardOfTrustees, pk=pk)
     if request.method == "POST":
+        save_deleted_record(member, request.user)
         member.delete()
         messages.success(request, "Board of Trustees member deleted successfully")
         return redirect("board_of_trustees_list")
@@ -5130,6 +5567,7 @@ def general_assembly_edit(request, pk):
 def general_assembly_delete(request, pk):
     member = get_object_or_404(GeneralAssemblyMember, pk=pk)
     if request.method == "POST":
+        save_deleted_record(member, request.user)
         member.delete()
         messages.success(request, "General Assembly member deleted successfully")
         return redirect("general_assembly_list")
@@ -5173,6 +5611,7 @@ def employee_edit(request, pk):
 def employee_delete(request, pk):
     employee = get_object_or_404(Employee, pk=pk)
     if request.method == "POST":
+        save_deleted_record(employee, request.user)
         employee.delete()
         messages.success(request, "Employee deleted successfully")
         return redirect("employee_list")

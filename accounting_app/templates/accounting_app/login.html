@@ -83,7 +83,7 @@
                     </div>
                 {% endfor %}
             {% endif %}
-            <form method="post">
+            <form method="post" data-no-confirm>
                 {% csrf_token %}
                 <div class="mb-3">
                     <label for="username" class="form-label fw-semibold">Username</label>

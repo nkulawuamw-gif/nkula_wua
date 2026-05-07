@@ -84,7 +84,7 @@
                     </li>
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         Access Settings
-                        {% if user.userprofile.can_access_settings %}
+                        {% if user.userprofile.has_settings_access %}
                             <span class="badge bg-success"><i class="bi bi-check"></i></span>
                         {% else %}
                             <span class="badge bg-danger"><i class="bi bi-x"></i></span>
@@ -92,7 +92,7 @@
                     </li>
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         Manage Users
-                        {% if user.userprofile.can_manage_users %}
+                        {% if user.userprofile.has_user_management_access %}
                             <span class="badge bg-success"><i class="bi bi-check"></i></span>
                         {% else %}
                             <span class="badge bg-danger"><i class="bi bi-x"></i></span>

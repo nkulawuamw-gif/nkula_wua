@@ -100,6 +100,33 @@ class UserProfile(models.Model):
     ]
     title_animation = models.CharField(max_length=20, choices=TITLE_ANIMATION_CHOICES, default="gradient")
 
+    can_access_dashboard = models.BooleanField(default=True, help_text="Can access the dashboard")
+    can_view_beneficiaries = models.BooleanField(default=True, help_text="Can view beneficiaries")
+    can_edit_beneficiaries = models.BooleanField(default=False, help_text="Can edit beneficiaries")
+    can_delete_beneficiaries = models.BooleanField(default=False, help_text="Can delete beneficiaries")
+    can_view_invoices = models.BooleanField(default=True, help_text="Can view invoices")
+    can_edit_invoices = models.BooleanField(default=False, help_text="Can create/edit invoices")
+    can_delete_invoices = models.BooleanField(default=False, help_text="Can delete invoices")
+    can_view_payments = models.BooleanField(default=True, help_text="Can view payments")
+    can_edit_payments = models.BooleanField(default=False, help_text="Can record payments")
+    can_delete_payments = models.BooleanField(default=False, help_text="Can delete payments")
+    can_view_expenses = models.BooleanField(default=True, help_text="Can view expenses")
+    can_edit_expenses = models.BooleanField(default=False, help_text="Can create/edit expenses")
+    can_delete_expenses = models.BooleanField(default=False, help_text="Can delete expenses")
+    can_view_reports = models.BooleanField(default=True, help_text="Can view reports")
+    can_export_reports = models.BooleanField(default=False, help_text="Can export reports")
+    can_view_journal = models.BooleanField(default=False, help_text="Can view journal entries")
+    can_edit_journal = models.BooleanField(default=False, help_text="Can create/edit journal entries")
+    can_view_budgets = models.BooleanField(default=False, help_text="Can view budgets")
+    can_edit_budgets = models.BooleanField(default=False, help_text="Can create/edit budgets")
+    can_delete_budgets = models.BooleanField(default=False, help_text="Can delete budgets")
+    can_manage_users = models.BooleanField(default=False, help_text="Can manage users")
+    can_access_settings = models.BooleanField(default=False, help_text="Can access system settings")
+    can_communicate = models.BooleanField(default=False, help_text="Can send communications (SMS/WhatsApp)")
+    can_view_employees = models.BooleanField(default=False, help_text="Can view employee records")
+    can_edit_employees = models.BooleanField(default=False, help_text="Can manage employees")
+    can_access_management = models.BooleanField(default=False, help_text="Can access management section (schemes, trustees, etc.)")
+
     def __str__(self):
         return self.user.username
     
@@ -113,28 +140,44 @@ class UserProfile(models.Model):
         return symbols.get(self.currency, self.currency)
     
     def is_admin(self):
-        return self.role == "admin"
-    
+        return self.role == "admin" or (
+            self.can_access_dashboard and self.can_edit_beneficiaries and self.can_delete_beneficiaries
+            and self.can_edit_invoices and self.can_delete_invoices and self.can_edit_payments
+            and self.can_delete_payments and self.can_edit_expenses and self.can_delete_expenses
+            and self.can_manage_users and self.can_access_settings
+        )
+
     def is_manager(self):
-        return self.role in ["admin", "manager"]
-    
+        return self.role in ["admin", "manager"] or (
+            self.can_edit_beneficiaries and self.can_delete_beneficiaries
+            and self.can_edit_invoices and self.can_edit_payments
+        )
+
     def is_accountant(self):
-        return self.role in ["admin", "manager", "accountant"]
-    
+        return self.role in ["admin", "manager", "accountant"] or (
+            self.can_view_beneficiaries and self.can_edit_beneficiaries
+            and self.can_view_invoices and self.can_edit_invoices
+            and self.can_view_payments and self.can_edit_payments
+        )
+
     def can_view(self):
-        return True
-    
+        return self.can_access_dashboard or self.can_view_beneficiaries or self.can_view_invoices
+
     def can_edit(self):
-        return self.role in ["admin", "manager", "accountant"]
-    
+        return (self.role in ["admin", "manager", "accountant"] or
+                self.can_edit_beneficiaries or self.can_edit_invoices or
+                self.can_edit_payments or self.can_edit_expenses)
+
     def can_delete(self):
-        return self.role in ["admin", "manager"]
+        return (self.role in ["admin", "manager"] or
+                self.can_delete_beneficiaries or self.can_delete_invoices or
+                self.can_delete_payments or self.can_delete_expenses)
     
-    def can_access_settings(self):
-        return self.role == "admin"
-    
-    def can_manage_users(self):
-        return self.role == "admin"
+    def has_settings_access(self):
+        return self.role == "admin" or self.can_access_settings
+
+    def has_user_management_access(self):
+        return self.role == "admin" or self.can_manage_users
 
 
 class Account(models.Model):
@@ -192,6 +235,7 @@ class Beneficiary(models.Model):
     total_outstanding = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Outstanding balance")
     credit_limit = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     payment_terms = models.IntegerField(default=30, help_text="Payment terms in days")
+    tap_installed_date = models.DateField(null=True, blank=True, help_text="Date when tap was installed")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -617,6 +661,23 @@ class BeneficiaryHistory(models.Model):
         return f"{self.beneficiary.name} - {self.action} - {self.field_name}"
 
 
+class BeneficiaryStatusLog(models.Model):
+    STATUS_CHOICES = [
+        ("activated", "Activated"),
+        ("deactivated", "Deactivated"),
+    ]
+    beneficiary = models.ForeignKey(Beneficiary, on_delete=models.CASCADE, related_name="status_logs")
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-changed_at"]
+
+    def __str__(self):
+        return f"{self.beneficiary.name} - {self.status} - {self.changed_at}"
+
+
 class OpeningBalance(models.Model):
     beneficiary = models.ForeignKey(Beneficiary, on_delete=models.CASCADE, related_name="opening_balances")
     fiscal_year = models.IntegerField()
@@ -1016,6 +1077,115 @@ class Service(models.Model):
         return self.title
 
 
+class LoginSession(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='login_sessions')
+    session_key = models.CharField(max_length=40, db_index=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True, help_text="Browser and device information")
+    device_info = models.CharField(max_length=255, blank=True, help_text="Parsed device/OS/browser info")
+    login_time = models.DateTimeField(auto_now_add=True)
+    logout_time = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['-login_time']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.login_time}"
+
+    @staticmethod
+    def parse_user_agent(user_agent):
+        if not user_agent:
+            return "Unknown Device"
+        
+        device = "Unknown OS"
+        browser = "Unknown Browser"
+        
+        if "Windows" in user_agent:
+            if "Windows NT 10.0" in user_agent:
+                device = "Windows 10/11"
+            elif "Windows NT 6.3" in user_agent:
+                device = "Windows 8.1"
+            elif "Windows NT 6.1" in user_agent:
+                device = "Windows 7"
+            else:
+                device = "Windows"
+        elif "Macintosh" in user_agent or "Mac OS X" in user_agent:
+            device = "macOS"
+        elif "Linux" in user_agent:
+            device = "Linux"
+        elif "Android" in user_agent:
+            version = ""
+            for part in user_agent.split(';'):
+                if 'Android' in part:
+                    version = part.strip()
+                    break
+            device = f"Android ({version})"
+        elif "iPhone" in user_agent or "iPad" in user_agent:
+            device = "iOS (iPhone/iPad)"
+        elif "Mobile" in user_agent:
+            device = "Mobile Device"
+        
+        if "Edg/" in user_agent:
+            browser = "Microsoft Edge"
+        elif "Chrome/" in user_agent and "Safari/" in user_agent and "Edg/" not in user_agent:
+            browser = "Google Chrome"
+        elif "Firefox/" in user_agent:
+            browser = "Mozilla Firefox"
+        elif "Safari/" in user_agent and "Chrome/" not in user_agent:
+            browser = "Safari"
+        elif "Opera" in user_agent or "OPR/" in user_agent:
+            browser = "Opera"
+        
+        if "Mobile" in user_agent and "iPad" not in user_agent:
+            return f"{device} (Mobile) - {browser}"
+        return f"{device} - {browser}"
+
+
+class DeletedRecord(models.Model):
+    model_name = models.CharField(max_length=100, help_text="Name of the model (e.g., Beneficiary)")
+    object_id = models.CharField(max_length=100, help_text="Original ID of the deleted object")
+    data = models.TextField(help_text="Serialized JSON data of the deleted record")
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='deleted_records')
+    deleted_at = models.DateTimeField(auto_now_add=True)
+    recovered = models.BooleanField(default=False)
+    recovered_at = models.DateTimeField(null=True, blank=True)
+    recovery_note = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-deleted_at']
+
+    def __str__(self):
+        return f"{self.model_name} #{self.object_id} (deleted: {self.deleted_at})"
+
+    def recover(self):
+        from django.apps import apps
+        import json
+        model = apps.get_model('accounting_app', self.model_name.lower())
+        if not model:
+            return False
+        
+        data = json.loads(self.data)
+        
+        related_fields = []
+        for field in model._meta.get_fields():
+            if field.is_relation and hasattr(field, 'to'):
+                related_fields.append(field.name)
+        
+        for field in related_fields:
+            if field in data:
+                del data[field]
+        
+        try:
+            obj = model.objects.create(**data)
+            self.recovered = True
+            self.recovered_at = timezone.now()
+            self.save(update_fields=['recovered', 'recovered_at'])
+            return obj
+        except Exception:
+            return False
+
+
 class LandingPageSettings(models.Model):
     primary_color = models.CharField(max_length=7, default='#0984e3', help_text="Primary color (hex code like #0984e3)")
     secondary_color = models.CharField(max_length=7, default='#00b894', help_text="Secondary color (hex code like #00b894)")
@@ -1031,13 +1201,68 @@ class LandingPageSettings(models.Model):
     whatsapp_color = models.CharField(max_length=7, default='#25D366', help_text="WhatsApp icon color")
     is_active = models.BooleanField(default=True, help_text="Use these settings (only one should be active)")
     updated_at = models.DateTimeField(auto_now=True)
-    
+
+    site_name = models.CharField(max_length=100, default='Nkula WUA', help_text="Site name shown in navbar")
+    hero_title = models.CharField(max_length=200, default='Nkula Water Users Association (WUA)', help_text="Main hero heading")
+    hero_title_highlight = models.CharField(max_length=200, default='Good and Quality Water for All', help_text="Highlighted text in hero (span)")
+    hero_subtitle = models.CharField(max_length=200, default='Good and Quality Water for All', help_text="Hero subtitle (h2)")
+    hero_description = models.TextField(default='Nkula Water Users Association is a community-based institution established under the Government of Malawi with African Development Bank (ADB) support to enhance safe, sustainable, and reliable water access in communities.', help_text="Hero paragraph description")
+    about_title = models.CharField(max_length=100, default='About Us', help_text="About section title")
+    about_subtitle = models.CharField(max_length=100, default='Who We Are', help_text="About section subtitle")
+    about_content = models.TextField(default='Nkula Water Users Association (WUA) is a community-based institution established in 2013 under the Government of Malawi with financial support from the African Development Bank (ADB). Our purpose is to empower communities to take full responsibility in water management and support community development initiatives.\n\nWe work with local leaders and community members to ensure water schemes are properly managed, protected, and maintained for the benefit of all.', help_text="About section paragraphs (use \\n\\n for new paragraphs)")
+    vision_title = models.CharField(max_length=100, default='Vision, Mission & Values', help_text="Vision section title")
+    vision_subtitle = models.CharField(max_length=100, default='Our guiding principles', help_text="Vision section subtitle")
+    vision_text = models.TextField(default='Good and quality water for all.', help_text="Vision statement")
+    mission_text = models.TextField(default='Empowering the community, promoting good health, and adapting and mitigating the effects of climate change through sustainable water management.', help_text="Mission statement")
+    values_text = models.TextField(default='Transparency and Accountability\nHonesty\nTeamwork', help_text="Core values (one per line)")
+    location_title = models.CharField(max_length=100, default='Our Location', help_text="Location section title")
+    location_subtitle = models.CharField(max_length=100, default='Where We Operate', help_text="Location section subtitle")
+    location_address = models.CharField(max_length=300, default='Matandika Village, T/A Nkula, Machinga District, Malawi', help_text="Physical address")
+    location_description = models.TextField(default='We serve multiple villages through our managed schemes and catchment areas.', help_text="Location description")
+    contact_phone = models.CharField(max_length=30, default='+265 982 960 373', help_text="Contact phone number")
+    contact_email = models.CharField(max_length=100, default='nkulawuamw@gmail.com', help_text="Contact email")
+    contact_whatsapp = models.CharField(max_length=30, default='+265 982 960 373', help_text="WhatsApp number (with country code, no +)")
+    contact_whatsapp_raw = models.CharField(max_length=30, default='265982960373', help_text="WhatsApp number raw format for link (e.g. 265982960373)")
+    projects_title = models.CharField(max_length=100, default='Projects & Achievements', help_text="Projects section title")
+    projects_subtitle = models.CharField(max_length=100, default='Our Progress', help_text="Projects section subtitle")
+    projects_intro = models.TextField(default='Nkula WUA is committed to improving water availability and sustainability by supporting:', help_text="Projects intro text")
+    projects_items = models.TextField(default='Water scheme rehabilitation\nCommunity capacity building\nWater point monitoring\nHygiene and sanitation awareness\nCatchment protection programs', help_text="Project items (one per line)")
+    projects_outro = models.TextField(default='We believe safe water is the foundation of a healthy and productive community.', help_text="Projects closing text")
+    cta_title = models.CharField(max_length=200, default='Join Us in Building Sustainable Water Access', help_text="Call-to-action heading")
+    cta_description = models.TextField(default='Nkula WUA invites partners, community members, and stakeholders to support the mission of providing safe and sustainable water. Together we can protect our water sources and improve lives.', help_text="Call-to-action description")
+    footer_text = models.TextField(default='Nkula Water Users Association (WUA)\nGood and Quality Water for All.\n2026 Nkula Water Users Association. All Rights Reserved.\nDesigned for Community Water Development and Sustainability.', help_text="Footer lines (one per line)")
+
+    water_sources_title = models.CharField(max_length=100, default='Our Water Sources', help_text="Water Sources section title")
+    water_sources_subtitle = models.TextField(default='Water infrastructure and natural sources sustaining our communities', help_text="Water Sources subtitle")
+    water_sources_images = models.TextField(default='intake.png|Water Intake System\nintake 3.png|Intake Infrastructure\npipes.png|Water Distribution Pipes\npulmbers.png|Plumbers at Work\nplumbers survey.png|Survey Work\nmilala survey.png|Milala Scheme Survey', help_text="Image file names and captions (filename|caption per line)")
+
+    news_title = models.CharField(max_length=100, default='News & Updates', help_text="News section title")
+    news_subtitle = models.CharField(max_length=100, default='Latest Updates', help_text="News section subtitle")
+    news_content = models.TextField(default='Meeting announcements\nScheme maintenance updates\nCommunity sanitation campaigns\nTraining and awareness programs', help_text="News items (one per line)")
+    news_intro = models.TextField(default='Stay updated with the latest activities and announcements from Nkula WUA.', help_text="News intro text")
+
+    meeting_objectives_title = models.CharField(max_length=100, default='Meeting Objectives', help_text="Meeting Objectives section title")
+    meeting_objectives_subtitle = models.CharField(max_length=100, default='Our Regular Meeting Goals', help_text="Meeting Objectives subtitle")
+    meeting_objectives_intro = models.TextField(default='Our regular meetings are aimed at:', help_text="Meeting intro text")
+    meeting_objectives_items = models.TextField(default='Discussing ways to improve the performance of water schemes\nReviewing completed activities\nIdentifying challenges faced in the schemes\nPlanning solutions and community action strategies', help_text="Meeting objective items (one per line)")
+
+    schemes_title = models.CharField(max_length=100, default='Our Water Schemes', help_text="Schemes section title")
+    schemes_subtitle = models.CharField(max_length=100, default='Schemes and Catchment Areas', help_text="Schemes subtitle")
+    schemes_list = models.TextField(default='Mangale Scheme|Serving communities with reliable water access\nNkala Scheme|Managed water infrastructure for local villages\nDodza Scheme|Sustainable water solutions for the community\nMilala Scheme|Clean water access for thousands of residents', help_text="Schemes (name|description per line)")
+
+    villages_title = models.CharField(max_length=100, default='Villages Under Nkula WUA', help_text="Villages section title")
+    villages_subtitle = models.CharField(max_length=100, default='Communities Served', help_text="Villages subtitle")
+    villages_list = models.TextField(default='Mangale Scheme|GVH Lipongo,Ndanje,Maoni,M\'balaka\nNkala Scheme|GVH Chingoli,Nthipo\nDodza Scheme|GVH Mtambo,Masanjala\nMilala Scheme|GVH Mkalawire,Mpango,Chimwayi,Mlawe', help_text="Villages grouped by scheme (scheme|village1,village2 per line)")
+
+    gallery_title = models.CharField(max_length=100, default='Gallery', help_text="Gallery section title")
+    gallery_subtitle = models.CharField(max_length=200, default='Photos of water infrastructure, intakes, pipes, and field work', help_text="Gallery subtitle")
+
     class Meta:
         ordering = ['-updated_at']
-    
+
     def __str__(self):
         return f"Landing Page Settings (Updated: {self.updated_at})"
-    
+
     def save(self, *args, **kwargs):
         if self.is_active:
             LandingPageSettings.objects.filter(is_active=True).exclude(pk=self.pk).update(is_active=False)

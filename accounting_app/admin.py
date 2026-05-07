@@ -3,18 +3,39 @@ from .models import (
     UserProfile, Account, Beneficiary, Vendor, Invoice, InvoiceItem,
     Expense, ExpenseItem, JournalEntry, JournalEntryLine, Payment, TaxRate, 
     Budget, ActivityLog, Report, OpeningBalance, YearEndRollover, Scheme, 
-    Village, VillagePopulation, BoardOfTrustees, GeneralAssemblyMember, Employee, GalleryImage, Service, LandingPageSettings
+    Village, VillagePopulation, BoardOfTrustees, GeneralAssemblyMember, Employee, GalleryImage, Service, LoginSession, DeletedRecord
 )
 
 
+class RestrictedModelAdmin(admin.ModelAdmin):
+    def has_module_permission(self, request):
+        if request.user.is_superuser:
+            return True
+        if hasattr(request.user, 'userprofile'):
+            return request.user.userprofile.role in ('admin', 'manager')
+        return False
+
+    def has_view_permission(self, request, obj=None):
+        return self.has_module_permission(request)
+
+    def has_add_permission(self, request):
+        return self.has_module_permission(request)
+
+    def has_change_permission(self, request, obj=None):
+        return self.has_module_permission(request)
+
+    def has_delete_permission(self, request, obj=None):
+        return self.has_module_permission(request)
+
+
 @admin.register(UserProfile)
-class UserProfileAdmin(admin.ModelAdmin):
+class UserProfileAdmin(RestrictedModelAdmin):
     list_display = ["user", "company_name", "phone"]
     search_fields = ["user__username", "company_name"]
 
 
 @admin.register(Account)
-class AccountAdmin(admin.ModelAdmin):
+class AccountAdmin(RestrictedModelAdmin):
     list_display = ["code", "name", "account_type", "balance", "is_active"]
     list_filter = ["account_type", "is_active"]
     search_fields = ["code", "name"]
@@ -22,7 +43,7 @@ class AccountAdmin(admin.ModelAdmin):
 
 
 @admin.register(Beneficiary)
-class BeneficiaryAdmin(admin.ModelAdmin):
+class BeneficiaryAdmin(RestrictedModelAdmin):
     list_display = ["name", "email", "phone", "village", "scheme", "household_count", "total_bill", "total_paid", "is_active"]
     list_filter = ["is_active", "scheme"]
     search_fields = ["name", "email"]
@@ -30,7 +51,7 @@ class BeneficiaryAdmin(admin.ModelAdmin):
 
 
 @admin.register(Vendor)
-class VendorAdmin(admin.ModelAdmin):
+class VendorAdmin(RestrictedModelAdmin):
     list_display = ["name", "email", "phone", "city", "is_active"]
     list_filter = ["is_active", "country"]
     search_fields = ["name", "email"]
@@ -42,7 +63,7 @@ class InvoiceItemInline(admin.TabularInline):
 
 
 @admin.register(Invoice)
-class InvoiceAdmin(admin.ModelAdmin):
+class InvoiceAdmin(RestrictedModelAdmin):
     list_display = ["invoice_number", "beneficiary", "household_count", "cost_per_unit", "total_amount", "status"]
     list_filter = ["status", "beneficiary"]
     search_fields = ["invoice_number", "beneficiary__name"]
@@ -52,14 +73,14 @@ class InvoiceAdmin(admin.ModelAdmin):
 
 
 @admin.register(Payment)
-class PaymentAdmin(admin.ModelAdmin):
+class PaymentAdmin(RestrictedModelAdmin):
     list_display = ["beneficiary", "amount", "payment_date", "payment_method", "invoice"]
     list_filter = ["payment_method", "payment_date"]
     search_fields = ["invoice__invoice_number", "beneficiary__name"]
 
 
 @admin.register(Expense)
-class ExpenseAdmin(admin.ModelAdmin):
+class ExpenseAdmin(RestrictedModelAdmin):
     list_display = ["expense_number", "vendor", "amount", "expense_date", "is_paid"]
     list_filter = ["is_paid", "expense_date"]
     search_fields = ["expense_number", "vendor__name"]
@@ -67,7 +88,7 @@ class ExpenseAdmin(admin.ModelAdmin):
 
 
 @admin.register(ExpenseItem)
-class ExpenseItemAdmin(admin.ModelAdmin):
+class ExpenseItemAdmin(RestrictedModelAdmin):
     list_display = ["description", "expense", "quantity", "unit_price", "category"]
     list_filter = ["category"]
     search_fields = ["description"]
@@ -79,7 +100,7 @@ class JournalEntryLineInline(admin.TabularInline):
 
 
 @admin.register(JournalEntry)
-class JournalEntryAdmin(admin.ModelAdmin):
+class JournalEntryAdmin(RestrictedModelAdmin):
     list_display = ["entry_number", "date", "description", "is_posted"]
     list_filter = ["is_posted", "date"]
     search_fields = ["entry_number", "description"]
@@ -87,20 +108,20 @@ class JournalEntryAdmin(admin.ModelAdmin):
 
 
 @admin.register(TaxRate)
-class TaxRateAdmin(admin.ModelAdmin):
+class TaxRateAdmin(RestrictedModelAdmin):
     list_display = ["name", "rate", "is_active"]
     list_filter = ["is_active"]
 
 
 @admin.register(Budget)
-class BudgetAdmin(admin.ModelAdmin):
+class BudgetAdmin(RestrictedModelAdmin):
     list_display = ["start_date", "end_date", "total_amount", "line_count"]
     list_filter = ["start_date"]
     search_fields = ["start_date", "end_date", "notes"]
 
 
 @admin.register(ActivityLog)
-class ActivityLogAdmin(admin.ModelAdmin):
+class ActivityLogAdmin(RestrictedModelAdmin):
     list_display = ["user", "action", "model_name", "timestamp"]
     list_filter = ["action", "model_name"]
     search_fields = ["user__username"]
@@ -109,7 +130,7 @@ class ActivityLogAdmin(admin.ModelAdmin):
 
 
 @admin.register(Report)
-class ReportAdmin(admin.ModelAdmin):
+class ReportAdmin(RestrictedModelAdmin):
     list_display = ["name", "report_type", "from_date", "to_date", "created_by"]
     list_filter = ["report_type", "is_saved"]
     search_fields = ["name"]
@@ -118,63 +139,63 @@ class ReportAdmin(admin.ModelAdmin):
 
 
 @admin.register(OpeningBalance)
-class OpeningBalanceAdmin(admin.ModelAdmin):
+class OpeningBalanceAdmin(RestrictedModelAdmin):
     list_display = ["beneficiary", "fiscal_year", "amount"]
     list_filter = ["fiscal_year"]
     search_fields = ["beneficiary__name"]
 
 
 @admin.register(YearEndRollover)
-class YearEndRolloverAdmin(admin.ModelAdmin):
+class YearEndRolloverAdmin(RestrictedModelAdmin):
     list_display = ["fiscal_year", "rollover_date", "total_clients", "total_opening_balance"]
     list_filter = ["fiscal_year"]
     readonly_fields = ["created_at"]
 
 
 @admin.register(Scheme)
-class SchemeAdmin(admin.ModelAdmin):
+class SchemeAdmin(RestrictedModelAdmin):
     list_display = ["code", "name", "is_active"]
     list_filter = ["is_active"]
     search_fields = ["name", "code"]
 
 
 @admin.register(Village)
-class VillageAdmin(admin.ModelAdmin):
+class VillageAdmin(RestrictedModelAdmin):
     list_display = ["name", "scheme", "household_count", "is_active"]
     list_filter = ["scheme", "is_active"]
     search_fields = ["name"]
 
 
 @admin.register(VillagePopulation)
-class VillagePopulationAdmin(admin.ModelAdmin):
+class VillagePopulationAdmin(RestrictedModelAdmin):
     list_display = ["village", "population", "recorded_date"]
     list_filter = ["village"]
     search_fields = ["village__name"]
 
 
 @admin.register(BoardOfTrustees)
-class BoardOfTrusteesAdmin(admin.ModelAdmin):
+class BoardOfTrusteesAdmin(RestrictedModelAdmin):
     list_display = ["name", "title", "contact", "village", "scheme_present"]
     list_filter = ["scheme_present"]
     search_fields = ["name", "village__name"]
 
 
 @admin.register(GeneralAssemblyMember)
-class GeneralAssemblyMemberAdmin(admin.ModelAdmin):
+class GeneralAssemblyMemberAdmin(RestrictedModelAdmin):
     list_display = ["name", "contact", "village", "scheme_present"]
     list_filter = ["scheme_present"]
     search_fields = ["name", "village__name"]
 
 
 @admin.register(Employee)
-class EmployeeAdmin(admin.ModelAdmin):
+class EmployeeAdmin(RestrictedModelAdmin):
     list_display = ["name", "position", "contact", "employee_type", "is_active"]
     list_filter = ["employee_type", "is_active"]
     search_fields = ["name", "position"]
 
 
 @admin.register(GalleryImage)
-class GalleryImageAdmin(admin.ModelAdmin):
+class GalleryImageAdmin(RestrictedModelAdmin):
     list_display = ["title", "is_active", "uploaded_at"]
     list_filter = ["is_active"]
     search_fields = ["title"]
@@ -182,14 +203,26 @@ class GalleryImageAdmin(admin.ModelAdmin):
 
 
 @admin.register(Service)
-class ServiceAdmin(admin.ModelAdmin):
+class ServiceAdmin(RestrictedModelAdmin):
     list_display = ["title", "is_active", "order"]
     list_filter = ["is_active"]
     search_fields = ["title"]
     list_editable = ["order"]
 
 
-@admin.register(LandingPageSettings)
-class LandingPageSettingsAdmin(admin.ModelAdmin):
-    list_display = ["primary_color", "is_active", "updated_at"]
-    list_filter = ["is_active"]
+@admin.register(LoginSession)
+class LoginSessionAdmin(RestrictedModelAdmin):
+    list_display = ["user", "ip_address", "device_info", "login_time", "logout_time", "is_active"]
+    list_filter = ["is_active", "login_time"]
+    search_fields = ["user__username", "ip_address"]
+    readonly_fields = ["user", "session_key", "ip_address", "user_agent", "device_info", "login_time", "logout_time"]
+    date_hierarchy = "login_time"
+
+
+@admin.register(DeletedRecord)
+class DeletedRecordAdmin(RestrictedModelAdmin):
+    list_display = ["model_name", "object_id", "deleted_by", "deleted_at", "recovered"]
+    list_filter = ["model_name", "recovered", "deleted_at"]
+    search_fields = ["model_name", "object_id", "deleted_by__username"]
+    readonly_fields = ["model_name", "object_id", "data", "deleted_by", "deleted_at", "recovered", "recovered_at"]
+    date_hierarchy = "deleted_at"

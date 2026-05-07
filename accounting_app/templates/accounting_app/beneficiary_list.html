@@ -247,7 +247,7 @@ function sendWhatsApp() {
                         </td>
                         <td class="text-center">
                             <a href="{% url 'beneficiary_edit' beneficiary.pk %}" class="btn btn-xs btn-outline-primary" title="Edit"><i class="bi bi-pencil"></i></a>
-                            <a href="{% url 'beneficiary_delete' beneficiary.pk %}" class="btn btn-xs btn-outline-danger" title="Delete" onclick="return confirm('Delete this beneficiary?');"><i class="bi bi-trash"></i></a>
+                            <a href="{% url 'beneficiary_delete' beneficiary.pk %}" class="btn btn-xs btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></a>
                         </td>
                     </tr>
                     {% empty %}

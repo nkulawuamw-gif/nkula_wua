@@ -924,24 +924,33 @@
         </a>
         {% endif %}
 
-        {% if user.userprofile.can_access_settings or user.userprofile.can_manage_users %}
+        {% if user.userprofile.has_settings_access or user.userprofile.has_user_management_access %}
         <div class="sidebar-dropdown">
             <a href="#" class="sidebar-dropdown-toggle settings-dropdown-toggle {% if 'settings' in request.resolver_match.url_name or 'user' in request.resolver_match.url_name or 'activity' in request.resolver_match.url_name %}active{% endif %}">
                 <i class="bi bi-gear"></i> Settings
                 <i class="bi bi-chevron-down float-end settings-chevron"></i>
             </a>
             <div class="sidebar-dropdown-menu">
-                {% if user.userprofile.can_access_settings %}
+                {% if user.userprofile.has_settings_access %}
                 <a href="{% url 'settings' %}" class="{% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
                     <i class="bi bi-sliders"></i> App Settings
+                </a>
+                <a href="{% url 'landing_page_settings' %}" class="{% if 'landing_page_settings' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="bi bi-globe"></i> Landing Page Settings
                 </a>
                 {% endif %}
                 <a href="{% url 'theme_settings' %}" class="{% if 'theme_settings' in request.resolver_match.url_name %}active{% endif %}">
                     <i class="bi bi-palette"></i> Theme Settings
                 </a>
-                {% if user.userprofile.can_manage_users %}
+                {% if user.userprofile.has_user_management_access %}
                 <a href="{% url 'user_list' %}" class="{% if 'user' in request.resolver_match.url_name %}active{% endif %}">
                     <i class="bi bi-people-fill"></i> User Management
+                </a>
+                <a href="{% url 'login_sessions' %}" class="{% if 'login_sessions' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="bi bi-clock-history"></i> Login Sessions
+                </a>
+                <a href="{% url 'data_recovery' %}" class="{% if 'data_recovery' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="bi bi-archive"></i> Data Recovery
                 </a>
                 {% endif %}
                 <a href="{% url 'activity_log' %}" class="{% if 'activity_log' in request.resolver_match.url_name %}active{% endif %}">
@@ -972,10 +981,13 @@
             {% endfor %}
         {% endif %}
         
-        <div class="d-flex justify-content-start mb-3">
+        <div class="d-flex justify-content-start mb-3 gap-2">
             <button onclick="history.back()" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left"></i> Back
             </button>
+            <a href="{% url 'landing' %}" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-house-door"></i> Back to Home
+            </a>
         </div>
         
         {% block content %}{% endblock %}
@@ -1343,6 +1355,315 @@
             activeIncomingCall = null;
         }
     }
+    </script>
+
+    <div class="modal fade" id="confirmationModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered modal-confirm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-shield-check me-2"></i> Confirm Action</h5>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <div class="confirm-icon mb-3">
+                        <i class="bi bi-question-circle-fill"></i>
+                    </div>
+                    <p id="confirmationMessage" class="mb-0"></p>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-no" id="confirmNoBtn">No</button>
+                    <button type="button" class="btn btn-yes" id="confirmYesBtn">Yes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Override browser confirm to prevent double dialogs
+    window.confirm = function() { return true; };
+    </script>
+
+    <style>
+    .modal-confirm {
+        max-width: 360px;
+        width: 85%;
+    }
+
+    .modal-confirm .modal-content {
+        border: none;
+        border-radius: 24px;
+        box-shadow: 0 30px 90px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.1);
+        overflow: hidden;
+        animation: modalPop 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        background: white;
+    }
+
+    .modal-confirm .modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom: none;
+        padding: 20px 25px;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .modal-confirm .modal-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: headerShine 3s ease-in-out infinite;
+    }
+
+    @keyframes headerShine {
+        0%, 100% { transform: translateX(-100%); }
+        50% { transform: translateX(100%); }
+    }
+
+    .modal-confirm .modal-title {
+        font-weight: 700;
+        font-size: 1.05rem;
+        text-align: center;
+        width: 100%;
+        position: relative;
+        z-index: 1;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .modal-confirm .modal-body {
+        background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+        padding: 30px 25px 20px;
+        position: relative;
+    }
+
+    .modal-confirm .modal-body::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        border-radius: 0 0 4px 4px;
+    }
+
+    .modal-confirm .modal-body p {
+        font-size: 1rem;
+        color: #2d3748;
+        font-weight: 500;
+        line-height: 1.6;
+        margin-top: 8px;
+    }
+
+    .confirm-icon {
+        font-size: 3rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        display: inline-block;
+        filter: drop-shadow(0 4px 6px rgba(102, 126, 234, 0.3));
+        animation: iconFloat 3s ease-in-out infinite;
+    }
+
+    @keyframes iconFloat {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-10px) scale(1.1); }
+    }
+
+    .modal-confirm .modal-footer {
+        border-top: 1px solid #e2e8f0;
+        padding: 20px 25px 25px;
+        background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);
+        gap: 15px;
+    }
+
+    .btn-no {
+        background: linear-gradient(to bottom, #e2e8f0 0%, #cbd5e0 100%);
+        color: #4a5568;
+        border: 2px solid transparent;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        min-width: 120px;
+        padding: 10px 30px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-yes {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: 2px solid transparent;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        min-width: 120px;
+        padding: 10px 30px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-no::before, .btn-yes::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.2);
+        transform: translate(-50%, -50%);
+        transition: width 0.6s, height 0.6s;
+    }
+
+    .btn-no:hover::before, .btn-yes:hover::before {
+        width: 300px;
+        height: 300px;
+    }
+
+    .btn-no:hover {
+        background: linear-gradient(to bottom, #cbd5e0 0%, #a0aec0 100%) !important;
+        transform: translateY(-4px) !important;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2) !important;
+        color: #2d3748 !important;
+    }
+
+    .btn-yes:hover {
+        transform: translateY(-4px) !important;
+        box-shadow: 0 10px 35px rgba(102, 126, 234, 0.6) !important;
+        filter: brightness(110%);
+        color: white !important;
+    }
+
+    .btn-no:active, .btn-yes:active {
+        transform: translateY(-2px) !important;
+        transition: all 0.1s;
+    }
+
+    .modal-backdrop.show {
+        background-color: rgba(0,0,0,0.7);
+        backdrop-filter: blur(5px);
+        opacity: 1;
+    }
+
+    @keyframes modalPop {
+        0% {
+            transform: scale(0.3) translateY(-100px);
+            opacity: 0;
+        }
+        50% {
+            transform: scale(1.08) translateY(0);
+        }
+        100% {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .modal-confirm {
+            max-width: 85%;
+            margin: 0 auto;
+        }
+
+        .btn-no, .btn-yes {
+            min-width: 90px;
+            padding: 8px 20px;
+            font-size: 0.9rem;
+        }
+    }
+    </style>
+
+    <script>
+    let confirmCallback = null;
+    let confirmModal = null;
+
+    function confirmAction(message, callback) {
+        document.getElementById('confirmationMessage').textContent = message;
+        confirmCallback = callback;
+        if (!confirmModal) {
+            confirmModal = new bootstrap.Modal(document.getElementById('confirmationModal'));
+        }
+        confirmModal.show();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const yesBtn = document.getElementById('confirmYesBtn');
+        const noBtn = document.getElementById('confirmNoBtn');
+        const modalEl = document.getElementById('confirmationModal');
+
+        yesBtn.addEventListener('click', function() {
+            if (confirmModal) confirmModal.hide();
+            if (confirmCallback) {
+                confirmCallback();
+                confirmCallback = null;
+            }
+        });
+
+        noBtn.addEventListener('click', function() {
+            if (confirmModal) confirmModal.hide();
+            confirmCallback = null;
+        });
+
+        modalEl.addEventListener('hidden.bs.modal', function() {
+            confirmCallback = null;
+        });
+
+        document.querySelectorAll('form:not([data-no-confirm])').forEach(function(form) {
+            const action = (form.getAttribute('action') || '').toLowerCase();
+            const isDeleteForm = action.includes('delete') || form.classList.contains('delete-form');
+            const hasSubmitBtn = form.querySelector('[type="submit"], button[type="submit"]');
+
+            if (!hasSubmitBtn) return;
+
+            form.addEventListener('submit', function(e) {
+                if (form.dataset.confirmed === 'true') {
+                    form.dataset.confirmed = '';
+                    return true;
+                }
+                e.preventDefault();
+                e.stopPropagation();
+
+                const message = isDeleteForm
+                    ? 'Are you sure you want to delete this record?'
+                    : 'Are you sure you want to save this data?';
+
+                confirmAction(message, () => {
+                    form.dataset.confirmed = 'true';
+                    form.submit();
+                });
+            });
+        });
+
+        document.querySelectorAll('a[href*="delete"]:not([data-no-confirm]), .btn-danger[href]:not([data-no-confirm]), a[onclick*="confirm"]:not([data-no-confirm])').forEach(function(el) {
+            el.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const originalHref = el.href;
+                const originalOnclick = el.getAttribute('onclick');
+
+                confirmAction('Are you sure you want to delete this record?', () => {
+                    if (originalOnclick) {
+                        el.removeAttribute('onclick');
+                        el.setAttribute('onclick', originalOnclick);
+                        el.click();
+                    } else if (originalHref) {
+                        window.location.href = originalHref;
+                    }
+                });
+            });
+        });
+    });
     </script>
     {% block extra_js %}{% endblock %}
 </body>

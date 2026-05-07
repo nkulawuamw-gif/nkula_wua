@@ -80,3 +80,40 @@ def mul(value, arg):
         return float(value) * float(arg)
     except:
         return 0
+
+@register.filter(name='split')
+def split(value, arg):
+    """Split a string by the given delimiter"""
+    try:
+        if not value:
+            return []
+        return value.split(arg)
+    except:
+        return [value]
+
+@register.filter(name='scheme_list')
+def scheme_list(text):
+    """Parse scheme list from database format"""
+    if not text:
+        return []
+    result = []
+    for line in text.replace('\\n', '\n').split('\n'):
+        line = line.strip()
+        if line and '|' in line:
+            parts = line.split('|', 1)
+            result.append({'name': parts[0].strip(), 'desc': parts[1].strip() if len(parts) > 1 else ''})
+    return result
+
+@register.filter(name='village_list')
+def village_list(text):
+    """Parse village list from database format"""
+    if not text:
+        return []
+    result = []
+    for line in text.replace('\\n', '\n').split('\n'):
+        line = line.strip()
+        if line and '|' in line:
+            parts = line.split('|', 1)
+            villages = [v.strip() for v in parts[1].split(',') if v.strip()] if len(parts) > 1 else []
+            result.append({'name': parts[0].strip(), 'villages': villages})
+    return result

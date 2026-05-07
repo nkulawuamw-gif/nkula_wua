@@ -113,9 +113,11 @@
                         <thead class="table-light">
                             <tr>
                                 <th>Date</th>
-                                <th>Client</th>
+                                <th>Beneficiary</th>
                                 <th>Invoice</th>
-                                <th>Amount</th>
+                                <th>Amount Paid</th>
+                                <th>Paid For</th>
+                                <th>Current Balance</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -124,12 +126,12 @@
                             <tr>
                                 <td>{{ payment.payment_date|date:"Y-m-d" }}</td>
                                 <td>
-                                    {% if payment.client.pk %}
-                                    <a href="{% url 'beneficiary_detail' payment.client.pk %}" class="text-decoration-none">
-                                        {{ payment.client.name }}
+                                    {% if payment.beneficiary.pk %}
+                                    <a href="{% url 'beneficiary_detail' payment.beneficiary.pk %}" class="text-decoration-none">
+                                        {{ payment.beneficiary.name }}
                                     </a>
                                     {% else %}
-                                    {{ payment.client.name|default:"Unknown" }}
+                                    {{ payment.beneficiary.name|default:"Unknown" }}
                                     {% endif %}
                                 </td>
                                 <td>
@@ -142,6 +144,8 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-success fw-bold">{{ symbol }}{{ payment.amount|floatformat:2 }}</td>
+                                <td>{{ payment.account.name|default:"-" }}</td>
+                                <td class="fw-bold">{{ symbol }}{{ payment.beneficiary.total_outstanding|floatformat:2 }}</td>
                                 <td>
                                     {% if payment.invoice %}
                                     {% if payment.invoice.is_fully_paid %}
@@ -150,7 +154,7 @@
                                     <span class="badge bg-warning text-dark rounded-pill">Partial</span>
                                     {% endif %}
                                     {% else %}
-                                    {% if payment.client.total_outstanding > 0 %}
+                                    {% if payment.beneficiary.total_outstanding > 0 %}
                                     <span class="badge bg-danger rounded-pill">Balance</span>
                                     {% else %}
                                     <span class="badge bg-success rounded-pill">Clear</span>
@@ -159,7 +163,7 @@
                                 </td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="5" class="text-muted text-center py-4">No payments yet</td></tr>
+                            <tr><td colspan="7" class="text-muted text-center py-4">No payments yet</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>

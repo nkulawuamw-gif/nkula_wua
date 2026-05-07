@@ -13,7 +13,7 @@ SECRET_KEY = os.getenv(
     'django-insecure-default-change-this'
 )
 
-DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+DEBUG = True
 
 ALLOWED_HOSTS = [
     '127.0.0.1',
@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'crispy_bootstrap5',
 
     'accounting_app',
+    'system_modules.apps.SystemModulesConfig',
 ]
 
 # MIDDLEWARE
@@ -52,7 +53,9 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 
+    'accounting_app.middleware.SessionTrackingMiddleware',
     'accounting_app.middleware.UserActivityMiddleware',
+    'accounting_app.middleware.AdminAccessRestrictionMiddleware',
 ]
 
 ROOT_URLCONF = 'accounting_project.urls'

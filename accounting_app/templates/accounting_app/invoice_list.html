@@ -9,7 +9,7 @@
         <a href="{% url 'bulk_invoice_edit' first_bulk_group|default:'INV-00000000000000' %}" style="background-color: #f39c12; color: white; padding: 8px 16px; border-radius: 5px; text-decoration: none; font-size: 13px; font-weight: bold; border: 1px solid #f39c12;">
             <i class="bi bi-pencil"></i> BULK EDIT
         </a>
-        <a href="{% url 'bulk_invoice_delete' first_bulk_group|default:'INV-00000000000000' %}" style="background-color: #d63031; color: white; padding: 8px 16px; border-radius: 5px; text-decoration: none; font-size: 13px; font-weight: bold; border: 1px solid #d63031;" onclick="return confirm('Are you sure you want to delete all bulk invoices?');">
+        <a href="{% url 'bulk_invoice_delete' first_bulk_group|default:'INV-00000000000000' %}" style="background-color: #d63031; color: white; padding: 8px 16px; border-radius: 5px; text-decoration: none; font-size: 13px; font-weight: bold; border: 1px solid #d63031;">
             <i class="bi bi-trash"></i> BULK DELETE
         </a>
         <a href="{% url 'bulk_invoice_create' %}" style="background-color: #00b894; color: white; padding: 8px 16px; border-radius: 5px; text-decoration: none; font-size: 13px; font-weight: bold; border: 1px solid #00b894;">
@@ -58,8 +58,6 @@
                         <th>Households</th>
                         <th>Cost/Unit</th>
                         <th>Total Invoice Amount</th>
-                        <th>Balance Before</th>
-                        <th>Total Balance</th>
                         <th class="text-center">Receive Payment</th>
                         <th>Actions</th>
                     </tr>
@@ -87,33 +85,6 @@
                         <td class="text-center">{{ user.userprofile.get_currency_symbol}}{{ invoice.cost_per_unit|floatformat:2 }}</td>
                         <td class="text-center fw-bold">{{ user.userprofile.get_currency_symbol}}{{ invoice.total_amount|floatformat:2 }}</td>
                         <td class="text-center">
-                            {% if invoice.balance_before > 0 %}
-                            <span class="text-danger fw-bold">{{ user.userprofile.get_currency_symbol}}{{ invoice.balance_before|floatformat:2 }}</span>
-                            {% else %}
-                            <span class="text-muted">{{ user.userprofile.get_currency_symbol}}0.00</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-center">
-                            {% with status=invoice.payment_status_display %}
-                            {% if status == 'No Balance' %}
-                            <span class="badge bg-success">
-                                <i class="bi bi-check-circle"></i> No Balance
-                            </span>
-                            <br><small class="text-success">{{ user.userprofile.get_currency_symbol}}{{ invoice.total_paid|floatformat:2 }}</small>
-                            {% elif status == 'Has Brought Forward' %}
-                            <span class="badge bg-info">
-                                <i class="bi bi-arrow-forward-circle"></i> Has Brought Forward
-                            </span>
-                            <br><small class="text-info">{{ user.userprofile.get_currency_symbol}}{{ invoice.total_paid|floatformat:2 }}</small>
-                            {% else %}
-                            <span class="badge bg-warning">
-                                <i class="bi bi-exclamation-circle"></i> Has Balance
-                            </span>
-                            <br><small class="text-danger">{{ user.userprofile.get_currency_symbol}}{{ invoice.balance|floatformat:2 }}</small>
-                            {% endif %}
-                            {% endwith %}
-                        </td>
-                        <td class="text-center">
                             {% if invoice.status == 'paid' %}
                             <span class="text-success"><i class="bi bi-check-circle-fill"></i></span>
                             {% else %}
@@ -130,7 +101,7 @@
                                 <a href="{% url 'invoice_edit' invoice.pk %}" class="btn btn-outline-primary" title="Edit Invoice">
                                     <i class="bi bi-pencil"></i>
                                 </a>
-                                <a href="{% url 'invoice_delete' invoice.pk %}" class="btn btn-outline-danger" title="Delete Invoice" onclick="return confirm('Are you sure you want to delete invoice {{ invoice.invoice_number }}?');">
+                                <a href="{% url 'invoice_delete' invoice.pk %}" class="btn btn-outline-danger" title="Delete Invoice">
                                     <i class="bi bi-trash"></i>
                                 </a>
                             </div>
@@ -138,7 +109,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="10" class="text-center text-muted py-4">
+                        <td colspan="8" class="text-center text-muted py-4">
                             <i class="bi bi-inbox" style="font-size: 3rem;"></i>
                             <p class="mt-2 mb-0">No invoices found</p>
                             <a href="{% url 'invoice_create' %}" class="btn btn-primary btn-sm mt-2">
@@ -160,21 +131,13 @@
     </div>
     <div class="card-body">
         <div class="row text-center">
-            <div class="col-md-3">
+            <div class="col-md-6">
                 <h6 class="text-muted mb-2">Total Invoices</h6>
                 <h4 class="mb-0 text-primary">{{ invoices|length }}</h4>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-6">
                 <h6 class="text-muted mb-2">Total Amount</h6>
                 <h4 class="mb-0 text-success">{{ user.userprofile.get_currency_symbol}}{{ total_amount|floatformat:2 }}</h4>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Paid</h6>
-                <h4 class="mb-0 text-success">{{ paid_count }}</h4>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Outstanding</h6>
-                <h4 class="mb-0 text-danger">{{ outstanding_count }}</h4>
             </div>
         </div>
     </div>

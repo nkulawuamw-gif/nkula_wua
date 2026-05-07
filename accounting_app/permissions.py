@@ -10,7 +10,7 @@ def admin_required(view_func):
             return redirect('login')
         if not hasattr(request.user, 'userprofile'):
             return redirect('login')
-        if not request.user.userprofile.can_access_settings():
+        if not (request.user.userprofile.role == "admin" or request.user.userprofile.can_access_settings):
             messages.error(request, "You don't have permission to access this page.")
             return redirect('dashboard')
         return view_func(request, *args, **kwargs)
@@ -80,7 +80,7 @@ def user_management_required(view_func):
             return redirect('login')
         if not hasattr(request.user, 'userprofile'):
             return redirect('login')
-        if not request.user.userprofile.can_manage_users():
+        if not (request.user.userprofile.role == "admin" or request.user.userprofile.can_manage_users):
             messages.error(request, "You don't have permission to manage users.")
             return redirect('dashboard')
         return view_func(request, *args, **kwargs)

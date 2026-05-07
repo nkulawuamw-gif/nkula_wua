@@ -441,60 +441,59 @@
 <div class="row mb-4">
     <div class="col-md-12">
         <div class="card">
-            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center" style="cursor: pointer;" onclick="toggleSchemeViews()">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-people"></i> Beneficiary & Household Statistics</h5>
                 <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-light text-dark">Total Beneficiaries: {{ total_beneficiaries }}</span>
-                    <i class="bi bi-chevron-down" id="schemeToggleIcon"></i>
+                    <span class="badge bg-light text-dark">Total Beneficiaries: {{ total_households }}</span>
                 </div>
             </div>
             <div class="card-body">
                 <div class="row text-center mb-4">
                     <div class="col mb-3">
                         <div class="p-3 bg-light rounded border">
-                            <h4 class="text-dark mb-0">{{ total_households }}</h4>
+                            <h4 class="text-dark mb-0">{{ total_beneficiaries }}</h4>
                             <small class="text-muted">Total Taps</small>
                         </div>
                     </div>
                     <div class="col mb-3">
                         <div class="p-3 bg-light rounded border">
-                            <h4 class="text-success mb-0">{{ total_private_households }}</h4>
+                            <h4 class="text-success mb-0">{{ private_beneficiaries }}</h4>
                             <small class="text-muted">Total Private Taps</small>
                         </div>
                     </div>
                     <div class="col mb-3">
                         <div class="p-3 bg-light rounded border">
-                            <h4 class="text-warning mb-0">{{ total_communal_households }}</h4>
+                            <h4 class="text-warning mb-0">{{ communal_beneficiaries }}</h4>
                             <small class="text-muted">Total Communal Taps</small>
                         </div>
                     </div>
                     <div class="col mb-3">
                         <div class="p-3 bg-light rounded border">
-                            <h4 class="text-info mb-0">{{ private_beneficiaries }}</h4>
+                            <h4 class="text-info mb-0">{{ total_private_households }}</h4>
                             <small class="text-muted">Total Private Beneficiaries</small>
                         </div>
                     </div>
                     <div class="col mb-3">
                         <div class="p-3 bg-light rounded border">
-                            <h4 class="text-secondary mb-0">{{ communal_beneficiaries }}</h4>
+                            <h4 class="text-secondary mb-0">{{ total_communal_households }}</h4>
                             <small class="text-muted">Total Communal Beneficiaries</small>
                         </div>
                     </div>
                     <div class="col mb-3">
                         <div class="p-3 bg-light rounded border">
-                            <h4 class="text-primary mb-0">{{ total_beneficiaries }}</h4>
+                            <h4 class="text-primary mb-0">{{ total_households }}</h4>
                             <small class="text-muted">Total Beneficiaries</small>
                         </div>
                     </div>
                 </div>
-                <div class="accordion" id="schemeAccordion" style="display: none;">
+                <div class="accordion" id="schemeAccordion">
                     {% for scheme in scheme_data %}
                     <div class="accordion-item">
                         <h2 class="accordion-header">
                             <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#scheme{{ forloop.counter }}">
                                 <div class="d-flex justify-content-between w-100 me-3">
                                     <span><i class="bi bi-geo-alt"></i> <strong>{{ scheme.name }}</strong></span>
-                                    <span>Total Beneficiaries: {{ scheme.total_beneficiaries }} | Total Households: {{ scheme.total_households }}</span>
+                                    <span>Total Taps: {{ scheme.total_clients }} | Total Beneficiaries: {{ scheme.total_households }}</span>
                                 </div>
                             </button>
                         </h2>
@@ -503,37 +502,37 @@
                                 <div class="row text-center">
                                     <div class="col mb-3">
                                         <div class="p-3 bg-light rounded border">
-                                            <h4 class="text-dark mb-0">{{ scheme.total_households }}</h4>
+                                            <h4 class="text-dark mb-0">{{ scheme.total_clients }}</h4>
                                             <small class="text-muted">Total Taps</small>
                                         </div>
                                     </div>
                                     <div class="col mb-3">
                                         <div class="p-3 bg-light rounded border">
-                                            <h4 class="text-success mb-0">{{ scheme.private_households }}</h4>
+                                            <h4 class="text-success mb-0">{{ scheme.private_clients }}</h4>
                                             <small class="text-muted">Total Private Taps</small>
                                         </div>
                                     </div>
                                     <div class="col mb-3">
                                         <div class="p-3 bg-light rounded border">
-                                            <h4 class="text-warning mb-0">{{ scheme.communal_households }}</h4>
+                                            <h4 class="text-warning mb-0">{{ scheme.communal_clients }}</h4>
                                             <small class="text-muted">Total Communal Taps</small>
                                         </div>
                                     </div>
                                     <div class="col mb-3">
                                         <div class="p-3 bg-light rounded border">
-                                            <h4 class="text-info mb-0">{{ scheme.private_clients }}</h4>
+                                            <h4 class="text-info mb-0">{{ scheme.private_households }}</h4>
                                             <small class="text-muted">Total Private Beneficiaries</small>
                                         </div>
                                     </div>
                                     <div class="col mb-3">
                                         <div class="p-3 bg-light rounded border">
-                                            <h4 class="text-secondary mb-0">{{ scheme.communal_clients }}</h4>
+                                            <h4 class="text-secondary mb-0">{{ scheme.communal_households }}</h4>
                                             <small class="text-muted">Total Communal Beneficiaries</small>
                                         </div>
                                     </div>
                                     <div class="col mb-3">
                                         <div class="p-3 bg-light rounded border">
-                                            <h4 class="text-primary mb-0">{{ scheme.total_clients }}</h4>
+                                            <h4 class="text-primary mb-0">{{ scheme.total_households }}</h4>
                                             <small class="text-muted">Total Beneficiaries</small>
                                         </div>
                                     </div>
@@ -547,22 +546,6 @@
         </div>
     </div>
 </div>
-
-<script>
-function toggleSchemeViews() {
-    const accordion = document.getElementById('schemeAccordion');
-    const icon = document.getElementById('schemeToggleIcon');
-    if (accordion.style.display === 'none') {
-        accordion.style.display = 'block';
-        icon.classList.remove('bi-chevron-down');
-        icon.classList.add('bi-chevron-up');
-    } else {
-        accordion.style.display = 'none';
-        icon.classList.remove('bi-chevron-up');
-        icon.classList.add('bi-chevron-down');
-    }
-}
-</script>
 
 <div class="row mb-4">
     <div class="col-md-12">

@@ -1,0 +1,104 @@
+{% extends "accounting_app/base.html" %}
+{% block title %}Data Recovery{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4><i class="bi bi-archive"></i> Data Recovery</h4>
+    <a href="{% url 'user_list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <h6 class="card-title">Pending Recovery</h6>
+                <h3>{{ pending_count }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h6 class="card-title">Already Recovered</h6>
+                <h3>{{ recovered_count }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h6 class="card-title">Total Deleted Records</h6>
+                <h3>{{ deleted_records.count }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="bi bi-list-ul"></i> All Deleted Records</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Original ID</th>
+                        <th>Deleted By</th>
+                        <th>Deleted At</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in deleted_records %}
+                    <tr class="{% if record.recovered %}table-success{% endif %}">
+                        <td>
+                            <strong>{{ record.model_name }}</strong>
+                        </td>
+                        <td><code>#{{ record.object_id }}</code></td>
+                        <td>{{ record.deleted_by.username|default:"System" }}</td>
+                        <td>{{ record.deleted_at|date:"Y-m-d H:i:s" }}</td>
+                        <td>
+                            {% if record.recovered %}
+                                <span class="badge bg-success"><i class="bi bi-check-circle"></i> Recovered</span>
+                                {% if record.recovered_at %}
+                                <br><small class="text-muted">{{ record.recovered_at|date:"Y-m-d H:i" }}</small>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if not record.recovered %}
+                            <form method="post" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="record_id" value="{{ record.pk }}">
+                                <input type="hidden" name="action" value="recover">
+                                <button type="submit" class="btn btn-sm btn-success">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Recover
+                                </button>
+                            </form>
+                            {% endif %}
+                            <form method="post" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="record_id" value="{{ record.pk }}">
+                                <input type="hidden" name="action" value="permanent_delete">
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">No deleted records found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

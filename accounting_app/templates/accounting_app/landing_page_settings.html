@@ -1,0 +1,769 @@
+{% extends "accounting_app/base.html" %}
+{% load custom_filters %}
+{% block title %}Landing Page Settings{% endblock %}
+
+{% block extra_css %}
+<style>
+    .settings-section {
+        margin-bottom: 2rem;
+    }
+    .settings-section h5 {
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .gallery-item-card, .service-item-card {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: transform 0.2s;
+    }
+    .gallery-item-card:hover, .service-item-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .gallery-item-card img, .service-item-card img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+    }
+    .color-preview {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        border: 2px solid #dee2e6;
+        display: inline-block;
+        vertical-align: middle;
+        margin-right: 8px;
+    }
+    .tab-content {
+        padding: 1.5rem 0;
+    }
+    .preview-iframe {
+        width: 100%;
+        height: 500px;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4><i class="bi bi-globe"></i> Landing Page Settings</h4>
+    <a href="{% url 'landing' %}" target="_blank" class="btn btn-outline-primary">
+        <i class="bi bi-box-arrow-up-right"></i> Preview Landing Page
+    </a>
+</div>
+
+<ul class="nav nav-tabs" id="landingTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="content-tab" data-bs-toggle="tab" data-bs-target="#content" type="button" role="tab">
+            <i class="bi bi-file-text"></i> Content
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="theme-tab" data-bs-toggle="tab" data-bs-target="#theme" type="button" role="tab">
+            <i class="bi bi-palette"></i> Colors & Theme
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="gallery-tab" data-bs-toggle="tab" data-bs-target="#gallery" type="button" role="tab">
+            <i class="bi bi-images"></i> Gallery
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="services-tab" data-bs-toggle="tab" data-bs-target="#services" type="button" role="tab">
+            <i class="bi bi-briefcase"></i> Services
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="sections-tab" data-bs-toggle="tab" data-bs-target="#sections" type="button" role="tab">
+            <i class="bi bi-layout-text-window-reverse"></i> Sections
+        </button>
+    </li>
+</ul>
+
+<form method="post" enctype="multipart/form-data" id="settingsForm" data-no-confirm>
+    {% csrf_token %}
+    <input type="hidden" name="action" value="update_settings">
+    
+    <div class="tab-content" id="landingTabsContent">
+        <!-- CONTENT TAB -->
+        <div class="tab-pane fade show active" id="content" role="tabpanel">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="settings-section">
+                        <h5>General</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Site Name</label>
+                            <input type="text" name="site_name" class="form-control" value="{{ settings.site_name }}">
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h5>Hero Section</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Hero Title</label>
+                            <input type="text" name="hero_title" class="form-control" value="{{ settings.hero_title }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Hero Subtitle</label>
+                            <input type="text" name="hero_subtitle" class="form-control" value="{{ settings.hero_subtitle }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Hero Description</label>
+                            <textarea name="hero_description" class="form-control" rows="3">{{ settings.hero_description }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h5>About Section</h5>
+                        <div class="mb-3">
+                            <label class="form-label">About Title</label>
+                            <input type="text" name="about_title" class="form-control" value="{{ settings.about_title }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">About Subtitle</label>
+                            <input type="text" name="about_subtitle" class="form-control" value="{{ settings.about_subtitle }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">About Content (use double new lines for paragraphs)</label>
+                            <textarea name="about_content" class="form-control" rows="5">{{ settings.about_content }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h5>Vision, Mission & Values</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Section Title</label>
+                            <input type="text" name="vision_title" class="form-control" value="{{ settings.vision_title }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Section Subtitle</label>
+                            <input type="text" name="vision_subtitle" class="form-control" value="{{ settings.vision_subtitle }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Vision Statement</label>
+                            <textarea name="vision_text" class="form-control" rows="2">{{ settings.vision_text }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Mission Statement</label>
+                            <textarea name="mission_text" class="form-control" rows="2">{{ settings.mission_text }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Values (one per line)</label>
+                            <textarea name="values_text" class="form-control" rows="4">{{ settings.values_text }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="settings-section">
+                        <h5>Location</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Section Title</label>
+                            <input type="text" name="location_title" class="form-control" value="{{ settings.location_title }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Section Subtitle</label>
+                            <input type="text" name="location_subtitle" class="form-control" value="{{ settings.location_subtitle }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Address</label>
+                            <input type="text" name="location_address" class="form-control" value="{{ settings.location_address }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea name="location_description" class="form-control" rows="2">{{ settings.location_description }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h5>Contact Information</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Phone</label>
+                            <input type="text" name="contact_phone" class="form-control" value="{{ settings.contact_phone }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="contact_email" class="form-control" value="{{ settings.contact_email }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">WhatsApp Number (display)</label>
+                            <input type="text" name="contact_whatsapp" class="form-control" value="{{ settings.contact_whatsapp }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">WhatsApp Number (raw for link, e.g. 265982960373)</label>
+                            <input type="text" name="contact_whatsapp_raw" class="form-control" value="{{ settings.contact_whatsapp_raw }}">
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h5>Projects & Achievements</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Section Title</label>
+                            <input type="text" name="projects_title" class="form-control" value="{{ settings.projects_title }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Section Subtitle</label>
+                            <input type="text" name="projects_subtitle" class="form-control" value="{{ settings.projects_subtitle }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Intro Text</label>
+                            <textarea name="projects_intro" class="form-control" rows="2">{{ settings.projects_intro }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Project Items (one per line)</label>
+                            <textarea name="projects_items" class="form-control" rows="5">{{ settings.projects_items }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Closing Text</label>
+                            <textarea name="projects_outro" class="form-control" rows="2">{{ settings.projects_outro }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h5>Call to Action</h5>
+                        <div class="mb-3">
+                            <label class="form-label">CTA Title</label>
+                            <input type="text" name="cta_title" class="form-control" value="{{ settings.cta_title }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">CTA Description</label>
+                            <textarea name="cta_description" class="form-control" rows="2">{{ settings.cta_description }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h5>Footer</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Footer Text (one line per entry)</label>
+                            <textarea name="footer_text" class="form-control" rows="4">{{ settings.footer_text }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- THEME TAB -->
+        <div class="tab-pane fade" id="theme" role="tabpanel">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="settings-section">
+                        <h5>Primary Colors</h5>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Primary Color</label>
+                                <div class="input-group">
+                                    <input type="color" name="primary_color" class="form-control form-control-color" value="{{ settings.primary_color }}">
+                                    <input type="text" name="primary_color_text" class="form-control" value="{{ settings.primary_color }}" maxlength="7" onchange="this.previousElementSibling.previousElementSibling.value=this.value">
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Secondary Color</label>
+                                <div class="input-group">
+                                    <input type="color" name="secondary_color" class="form-control form-control-color" value="{{ settings.secondary_color }}">
+                                    <input type="text" class="form-control" value="{{ settings.secondary_color }}" maxlength="7">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h5>Hero Section Colors</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Gradient Start</label>
+                            <div class="input-group">
+                                <input type="color" name="hero_gradient_start" class="form-control form-control-color" value="{{ settings.hero_gradient_start }}">
+                                <input type="text" class="form-control" value="{{ settings.hero_gradient_start }}" maxlength="7">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Gradient Middle</label>
+                            <div class="input-group">
+                                <input type="color" name="hero_gradient_mid" class="form-control form-control-color" value="{{ settings.hero_gradient_mid }}">
+                                <input type="text" class="form-control" value="{{ settings.hero_gradient_mid }}" maxlength="7">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Gradient End</label>
+                            <div class="input-group">
+                                <input type="color" name="hero_gradient_end" class="form-control form-control-color" value="{{ settings.hero_gradient_end }}">
+                                <input type="text" class="form-control" value="{{ settings.hero_gradient_end }}" maxlength="7">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h5>Background Colors</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Section Background (Light)</label>
+                            <div class="input-group">
+                                <input type="color" name="section_bg_light" class="form-control form-control-color" value="{{ settings.section_bg_light }}">
+                                <input type="text" class="form-control" value="{{ settings.section_bg_light }}" maxlength="7">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h5>Text Colors</h5>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Primary Text</label>
+                                <div class="input-group">
+                                    <input type="color" name="text_primary" class="form-control form-control-color" value="{{ settings.text_primary }}">
+                                    <input type="text" class="form-control" value="{{ settings.text_primary }}" maxlength="7">
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Secondary Text</label>
+                                <div class="input-group">
+                                    <input type="color" name="text_secondary" class="form-control form-control-color" value="{{ settings.text_secondary }}">
+                                    <input type="text" class="form-control" value="{{ settings.text_secondary }}" maxlength="7">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="settings-section">
+                        <h5>Call to Action Colors</h5>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Gradient Start</label>
+                                <div class="input-group">
+                                    <input type="color" name="cta_gradient_start" class="form-control form-control-color" value="{{ settings.cta_gradient_start }}">
+                                    <input type="text" class="form-control" value="{{ settings.cta_gradient_start }}" maxlength="7">
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Gradient End</label>
+                                <div class="input-group">
+                                    <input type="color" name="cta_gradient_end" class="form-control form-control-color" value="{{ settings.cta_gradient_end }}">
+                                    <input type="text" class="form-control" value="{{ settings.cta_gradient_end }}" maxlength="7">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h5>WhatsApp Color</h5>
+                        <div class="mb-3">
+                            <label class="form-label">WhatsApp Icon Color</label>
+                            <div class="input-group">
+                                <input type="color" name="whatsapp_color" class="form-control form-control-color" value="{{ settings.whatsapp_color }}">
+                                <input type="text" class="form-control" value="{{ settings.whatsapp_color }}" maxlength="7">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h5>Color Presets</h5>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="applyPreset('water')">
+                                Water Blue
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-success" onclick="applyPreset('nature')">
+                                Nature Green
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-warning" onclick="applyPreset('sunset')">
+                                Sunset Orange
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-dark" onclick="applyPreset('dark')">
+                                Dark Mode
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GALLERY TAB -->
+        <div class="tab-pane fade" id="gallery" role="tabpanel">
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">Add New Gallery Image</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3" data-form-url="{% url 'gallery_image_create' %}">
+                                <div class="col-md-4">
+                                    <label class="form-label">Image *</label>
+                                    <input type="file" name="image" class="form-control gallery-file" accept="image/*" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Title</label>
+                                    <input type="text" name="title" class="form-control" placeholder="Image title">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Description</label>
+                                    <input type="text" name="description" class="form-control" placeholder="Short description">
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <button type="button" class="btn btn-primary w-100" onclick="submitNestedForm(this)">
+                                        <i class="bi bi-plus"></i> Add
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h6 class="mb-3">Existing Gallery Images ({{ gallery_images.count }})</h6>
+            <div class="row">
+                {% for image in gallery_images %}
+                <div class="col-md-3 mb-3">
+                    <div class="gallery-item-card">
+                        <img src="{{ image.image.url }}" alt="{{ image.title }}">
+                        <div class="p-2">
+                            <div data-form-url="{% url 'gallery_image_edit' image.pk %}">
+                                <div class="mb-2">
+                                    <input type="text" name="title" class="form-control form-control-sm" value="{{ image.title }}" placeholder="Title">
+                                </div>
+                                <div class="mb-2">
+                                    <input type="text" name="description" class="form-control form-control-sm" value="{{ image.description }}" placeholder="Description">
+                                </div>
+                                <div class="mb-2">
+                                    <input type="file" name="image" class="form-control form-control-sm gallery-file" accept="image/*">
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="is_active" id="img_active_{{ image.pk }}" {% if image.is_active %}checked{% endif %}>
+                                    <label class="form-check-label" for="img_active_{{ image.pk }}">Active</label>
+                                </div>
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-sm btn-primary flex-fill" onclick="submitNestedForm(this)">Save</button>
+                                    <a href="{% url 'gallery_image_delete' image.pk %}" class="btn btn-sm btn-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-info">No gallery images yet. Add your first image above.</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- SERVICES TAB -->
+        <div class="tab-pane fade" id="services" role="tabpanel">
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">Add New Service</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3" data-form-url="{% url 'service_create' %}">
+                                <div class="col-md-3">
+                                    <label class="form-label">Title *</label>
+                                    <input type="text" name="title" class="form-control" placeholder="Service title" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Description</label>
+                                    <textarea name="description" class="form-control" rows="1" placeholder="Service description"></textarea>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Caption</label>
+                                    <input type="text" name="caption" class="form-control" placeholder="Short caption">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Order</label>
+                                    <input type="number" name="order" class="form-control" value="0" min="0">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Image *</label>
+                                    <input type="file" name="image" class="form-control gallery-file" accept="image/*" required>
+                                </div>
+                                <div class="col-md-12">
+                                    <button type="button" class="btn btn-primary" onclick="submitNestedForm(this)">
+                                        <i class="bi bi-plus"></i> Add Service
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h6 class="mb-3">Existing Services ({{ services.count }})</h6>
+            <div class="row">
+                {% for service in services %}
+                <div class="col-md-4 mb-3">
+                    <div class="service-item-card">
+                        <img src="{{ service.image.url }}" alt="{{ service.title }}">
+                        <div class="p-2">
+                            <div data-form-url="{% url 'service_edit' service.pk %}">
+                                <div class="mb-2">
+                                    <input type="text" name="title" class="form-control form-control-sm" value="{{ service.title }}" placeholder="Title" required>
+                                </div>
+                                <div class="mb-2">
+                                    <textarea name="description" class="form-control form-control-sm" rows="2" placeholder="Description">{{ service.description }}</textarea>
+                                </div>
+                                <div class="mb-2">
+                                    <input type="text" name="caption" class="form-control form-control-sm" value="{{ service.caption }}" placeholder="Caption">
+                                </div>
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <input type="number" name="order" class="form-control form-control-sm" value="{{ service.order }}" min="0" placeholder="Order">
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="form-check mt-1">
+                                            <input class="form-check-input" type="checkbox" name="is_active" id="svc_active_{{ service.pk }}" {% if service.is_active %}checked{% endif %}>
+                                            <label class="form-check-label" for="svc_active_{{ service.pk }}">Active</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <input type="file" name="image" class="form-control form-control-sm gallery-file" accept="image/*">
+                                </div>
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-sm btn-primary flex-fill" onclick="submitNestedForm(this)">Save</button>
+                                    <a href="{% url 'service_delete' service.pk %}" class="btn btn-sm btn-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-info">No services yet. Add your first service above.</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- SECTIONS TAB -->
+        <div class="tab-pane fade" id="sections" role="tabpanel">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="settings-section">
+                        <h5>Water Sources Section</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Section Title</label>
+                            <input type="text" name="water_sources_title" class="form-control" value="{{ settings.water_sources_title }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Subtitle</label>
+                            <input type="text" name="water_sources_subtitle" class="form-control" value="{{ settings.water_sources_subtitle }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Images & Captions (filename|caption per line)</label>
+                            <textarea name="water_sources_images" class="form-control" rows="8" placeholder="intake.png|Water Intake System">{{ settings.water_sources_images }}</textarea>
+                            <small class="text-muted">Place images in static/accounting_app/images/</small>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h5>News & Updates Section</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Section Title</label>
+                            <input type="text" name="news_title" class="form-control" value="{{ settings.news_title }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Subtitle</label>
+                            <input type="text" name="news_subtitle" class="form-control" value="{{ settings.news_subtitle }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Content Items (one per line)</label>
+                            <textarea name="news_content" class="form-control" rows="5">{{ settings.news_content }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Intro/Outro Text</label>
+                            <textarea name="news_intro" class="form-control" rows="2">{{ settings.news_intro }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="settings-section">
+                        <h5>Meeting Objectives Section</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Section Title</label>
+                            <input type="text" name="meeting_objectives_title" class="form-control" value="{{ settings.meeting_objectives_title }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Subtitle</label>
+                            <input type="text" name="meeting_objectives_subtitle" class="form-control" value="{{ settings.meeting_objectives_subtitle }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Intro Text</label>
+                            <input type="text" name="meeting_objectives_intro" class="form-control" value="{{ settings.meeting_objectives_intro }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Objective Items (one per line)</label>
+                            <textarea name="meeting_objectives_items" class="form-control" rows="5">{{ settings.meeting_objectives_items }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h5>Water Schemes Section</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Section Title</label>
+                            <input type="text" name="schemes_title" class="form-control" value="{{ settings.schemes_title }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Subtitle</label>
+                            <input type="text" name="schemes_subtitle" class="form-control" value="{{ settings.schemes_subtitle }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Schemes (name|description per line)</label>
+                            <textarea name="schemes_list" class="form-control" rows="5">{{ settings.schemes_list }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h5>Villages Section</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Section Title</label>
+                            <input type="text" name="villages_title" class="form-control" value="{{ settings.villages_title }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Subtitle</label>
+                            <input type="text" name="villages_subtitle" class="form-control" value="{{ settings.villages_subtitle }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Villages by Scheme (scheme|village1,village2 per line)</label>
+                            <textarea name="villages_list" class="form-control" rows="6">{{ settings.villages_list }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h5>Gallery Section Headers</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Gallery Title</label>
+                            <input type="text" name="gallery_title" class="form-control" value="{{ settings.gallery_title }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Gallery Subtitle</label>
+                            <input type="text" name="gallery_subtitle" class="form-control" value="{{ settings.gallery_subtitle }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <button type="submit" class="btn btn-primary btn-lg">
+            <i class="bi bi-save"></i> Save Content & Theme Settings
+        </button>
+        <a href="{% url 'landing' %}" target="_blank" class="btn btn-outline-secondary btn-lg ms-2">
+            <i class="bi bi-box-arrow-up-right"></i> View Landing Page
+        </a>
+    </div>
+</form>
+
+<script>
+const colorPresets = {
+    water: {
+        primary_color: '#0984e3',
+        secondary_color: '#00b894',
+        hero_gradient_start: '#0f1923',
+        hero_gradient_mid: '#1a2a3a',
+        hero_gradient_end: '#0984e3',
+        section_bg_light: '#f5f6fa',
+        text_primary: '#1e272e',
+        text_secondary: '#636e72',
+        cta_gradient_start: '#0984e3',
+        cta_gradient_end: '#00b894',
+        whatsapp_color: '#25D366'
+    },
+    nature: {
+        primary_color: '#00b894',
+        secondary_color: '#55efc4',
+        hero_gradient_start: '#0a3d0a',
+        hero_gradient_mid: '#1a5c1a',
+        hero_gradient_end: '#00b894',
+        section_bg_light: '#f0f7f0',
+        text_primary: '#1e272e',
+        text_secondary: '#636e72',
+        cta_gradient_start: '#00b894',
+        cta_gradient_end: '#55efc4',
+        whatsapp_color: '#25D366'
+    },
+    sunset: {
+        primary_color: '#e17055',
+        secondary_color: '#fdcb6e',
+        hero_gradient_start: '#2d1b00',
+        hero_gradient_mid: '#4a2c00',
+        hero_gradient_end: '#e17055',
+        section_bg_light: '#faf5f0',
+        text_primary: '#1e272e',
+        text_secondary: '#636e72',
+        cta_gradient_start: '#e17055',
+        cta_gradient_end: '#fdcb6e',
+        whatsapp_color: '#25D366'
+    },
+    dark: {
+        primary_color: '#6c5ce7',
+        secondary_color: '#a29bfe',
+        hero_gradient_start: '#0a0a0a',
+        hero_gradient_mid: '#1a1a2e',
+        hero_gradient_end: '#6c5ce7',
+        section_bg_light: '#1a1a2e',
+        text_primary: '#dfe6e9',
+        text_secondary: '#b2bec3',
+        cta_gradient_start: '#6c5ce7',
+        cta_gradient_end: '#a29bfe',
+        whatsapp_color: '#25D366'
+    }
+};
+
+function applyPreset(preset) {
+    const colors = colorPresets[preset];
+    if (!colors) return;
+    
+    document.querySelectorAll('input[type="color"]').forEach(input => {
+        if (colors[input.name]) {
+            input.value = colors[input.name];
+            const textInput = input.parentElement.querySelector('input[type="text"]');
+            if (textInput) textInput.value = colors[input.name];
+        }
+    });
+    
+    document.querySelectorAll('input[name$="_text"]').forEach(input => {
+        const colorName = input.name.replace('_text', '');
+        if (colors[colorName]) {
+            input.value = colors[colorName];
+        }
+    });
+}
+
+document.querySelectorAll('input[type="color"]').forEach(colorInput => {
+    colorInput.addEventListener('input', function() {
+        const textInput = this.parentElement.querySelector('input[type="text"]');
+        if (textInput) textInput.value = this.value;
+    });
+});
+
+function submitNestedForm(button) {
+    const container = button.closest('[data-form-url]');
+    if (!container) return;
+    const url = container.dataset.formUrl;
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const formData = new FormData();
+    container.querySelectorAll('input, textarea, select').forEach(el => {
+        if (el.type === 'checkbox') {
+            formData.append(el.name, el.checked ? 'on' : 'off');
+        } else if (el.type === 'file') {
+            if (el.files.length > 0) formData.append(el.name, el.files[0]);
+        } else if (el.name) {
+            formData.append(el.name, el.value);
+        }
+    });
+    formData.append('csrfmiddlewaretoken', csrf);
+    button.disabled = true;
+    button.textContent = 'Saving...';
+    fetch(url, { method: 'POST', body: formData })
+        .then(r => { if (!r.ok) throw new Error('Save failed'); location.reload(); })
+        .catch(e => { alert('Error saving: ' + e.message); button.disabled = false; button.textContent = 'Save'; });
+}
+</script>
+{% endblock %}

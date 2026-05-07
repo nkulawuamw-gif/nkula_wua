@@ -1,17 +1,68 @@
 {% extends "accounting_app/base.html" %}
 {% block title %}Edit User{% endblock %}
 
+{% block extra_css %}
+<style>
+    .perm-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    .perm-section h6 {
+        margin-bottom: 8px;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #6c757d;
+    }
+    .perm-check-label {
+        font-weight: 500;
+        margin-bottom: 0;
+    }
+    .role-presets {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+    .role-preset-btn {
+        padding: 8px 16px;
+        border-radius: 20px;
+        border: 2px solid #dee2e6;
+        background: white;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    .role-preset-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .role-preset-btn.active {
+        border-color: #0d6efd;
+        background: #0d6efd;
+        color: white;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4>Edit User - {{ edit_user.username }}</h4>
 </div>
 
-<div class="row">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
+<form method="post" id="userForm">
+    {% csrf_token %}
+    
+    <div class="row">
+        <div class="col-md-5">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">Account Details</h6>
+                </div>
+                <div class="card-body">
                     <div class="mb-3">
                         <label class="form-label">Username</label>
                         <input type="text" name="username" class="form-control" value="{{ edit_user.username }}" required>
@@ -25,48 +76,304 @@
                         <input type="password" name="password" class="form-control" placeholder="Enter new password">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Role</label>
-                        <select name="role" class="form-select" required>
-                            <option value="viewer" {% if profile.role == 'viewer' %}selected{% endif %}>Viewer - Can view only</option>
-                            <option value="accountant" {% if profile.role == 'accountant' %}selected{% endif %}>Accountant - Can view and edit</option>
-                            <option value="manager" {% if profile.role == 'manager' %}selected{% endif %}>Manager - Can view, edit, and delete</option>
-                            <option value="admin" {% if profile.role == 'admin' %}selected{% endif %}>Administrator - Full access</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
                         <label class="form-label">Status</label>
                         <div class="form-check form-switch">
+                            <input type="hidden" name="is_active" value="off">
                             <input class="form-check-input" type="checkbox" name="is_active" id="is_active" {% if edit_user.is_active %}checked{% endif %}>
                             <label class="form-check-label" for="is_active">Active</label>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary">Update User</button>
-                    <a href="{% url 'user_list' %}" class="btn btn-secondary">Cancel</a>
-                </form>
+                    <div class="mb-3">
+                        <label class="form-label">Role Label</label>
+                        <select name="role" class="form-select" id="roleSelect">
+                            <option value="viewer" {% if profile.role == 'viewer' %}selected{% endif %}>Viewer</option>
+                            <option value="accountant" {% if profile.role == 'accountant' %}selected{% endif %}>Accountant</option>
+                            <option value="manager" {% if profile.role == 'manager' %}selected{% endif %}>Manager</option>
+                            <option value="admin" {% if profile.role == 'admin' %}selected{% endif %}>Administrator</option>
+                            <option value="custom" {% if profile.role == 'custom' %}selected{% endif %}>Custom</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Permission Checkboxes</h6>
+                    <div>
+                        <button type="button" class="btn btn-sm btn-outline-success me-1" onclick="selectAll()"><i class="bi bi-check2-all"></i> Allow All</button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deselectAll()"><i class="bi bi-x-circle"></i> Deny All</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="role-presets">
+                        <span class="text-muted me-2 align-self-center">Quick preset:</span>
+                        <button type="button" class="role-preset-btn" onclick="applyPreset('admin')">Administrator</button>
+                        <button type="button" class="role-preset-btn" onclick="applyPreset('manager')">Manager</button>
+                        <button type="button" class="role-preset-btn" onclick="applyPreset('accountant')">Accountant</button>
+                        <button type="button" class="role-preset-btn" onclick="applyPreset('viewer')">Viewer</button>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="perm-section">
+                                <h6>General</h6>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_access_dashboard" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_access_dashboard" value="on" id="perm_dashboard" {% if profile.can_access_dashboard %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_dashboard">Access Dashboard</label>
+                                </div>
+                            </div>
+                            
+                            <div class="perm-section">
+                                <h6>Beneficiaries</h6>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_view_beneficiaries" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_view_beneficiaries" value="on" id="perm_view_beneficiaries" {% if profile.can_view_beneficiaries %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_view_beneficiaries">View Beneficiaries</label>
+                                </div>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_edit_beneficiaries" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_edit_beneficiaries" value="on" id="perm_edit_beneficiaries" {% if profile.can_edit_beneficiaries %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_edit_beneficiaries">Edit Beneficiaries</label>
+                                </div>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_delete_beneficiaries" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_delete_beneficiaries" value="on" id="perm_delete_beneficiaries" {% if profile.can_delete_beneficiaries %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_delete_beneficiaries">Delete Beneficiaries</label>
+                                </div>
+                            </div>
+                            
+                            <div class="perm-section">
+                                <h6>Invoices</h6>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_view_invoices" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_view_invoices" value="on" id="perm_view_invoices" {% if profile.can_view_invoices %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_view_invoices">View Invoices</label>
+                                </div>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_edit_invoices" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_edit_invoices" value="on" id="perm_edit_invoices" {% if profile.can_edit_invoices %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_edit_invoices">Create/Edit Invoices</label>
+                                </div>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_delete_invoices" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_delete_invoices" value="on" id="perm_delete_invoices" {% if profile.can_delete_invoices %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_delete_invoices">Delete Invoices</label>
+                                </div>
+                            </div>
+                            
+                            <div class="perm-section">
+                                <h6>Payments</h6>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_view_payments" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_view_payments" value="on" id="perm_view_payments" {% if profile.can_view_payments %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_view_payments">View Payments</label>
+                                </div>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_edit_payments" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_edit_payments" value="on" id="perm_edit_payments" {% if profile.can_edit_payments %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_edit_payments">Record Payments</label>
+                                </div>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_delete_payments" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_delete_payments" value="on" id="perm_delete_payments" {% if profile.can_delete_payments %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_delete_payments">Delete Payments</label>
+                                </div>
+                            </div>
+                            
+                            <div class="perm-section">
+                                <h6>Expenses</h6>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_view_expenses" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_view_expenses" value="on" id="perm_view_expenses" {% if profile.can_view_expenses %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_view_expenses">View Expenses</label>
+                                </div>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_edit_expenses" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_edit_expenses" value="on" id="perm_edit_expenses" {% if profile.can_edit_expenses %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_edit_expenses">Create/Edit Expenses</label>
+                                </div>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_delete_expenses" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_delete_expenses" value="on" id="perm_delete_expenses" {% if profile.can_delete_expenses %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_delete_expenses">Delete Expenses</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="perm-section">
+                                <h6>Reports</h6>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_view_reports" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_view_reports" value="on" id="perm_view_reports" {% if profile.can_view_reports %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_view_reports">View Reports</label>
+                                </div>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_export_reports" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_export_reports" value="on" id="perm_export_reports" {% if profile.can_export_reports %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_export_reports">Export Reports (PDF/Excel)</label>
+                                </div>
+                            </div>
+                            
+                            <div class="perm-section">
+                                <h6>Journal Entries</h6>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_view_journal" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_view_journal" value="on" id="perm_view_journal" {% if profile.can_view_journal %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_view_journal">View Journal</label>
+                                </div>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_edit_journal" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_edit_journal" value="on" id="perm_edit_journal" {% if profile.can_edit_journal %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_edit_journal">Create/Edit Journal</label>
+                                </div>
+                            </div>
+                            
+                            <div class="perm-section">
+                                <h6>Budgets</h6>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_view_budgets" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_view_budgets" value="on" id="perm_view_budgets" {% if profile.can_view_budgets %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_view_budgets">View Budgets</label>
+                                </div>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_edit_budgets" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_edit_budgets" value="on" id="perm_edit_budgets" {% if profile.can_edit_budgets %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_edit_budgets">Create/Edit Budgets</label>
+                                </div>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_delete_budgets" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_delete_budgets" value="on" id="perm_delete_budgets" {% if profile.can_delete_budgets %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_delete_budgets">Delete Budgets</label>
+                                </div>
+                            </div>
+                            
+                            <div class="perm-section">
+                                <h6>Management</h6>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_access_management" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_access_management" value="on" id="perm_access_management" {% if profile.can_access_management %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_access_management">Schemes, Trustees, Villages</label>
+                                </div>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_view_employees" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_view_employees" value="on" id="perm_view_employees" {% if profile.can_view_employees %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_view_employees">View Employees</label>
+                                </div>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_edit_employees" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_edit_employees" value="on" id="perm_edit_employees" {% if profile.can_edit_employees %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_edit_employees">Manage Employees</label>
+                                </div>
+                            </div>
+                            
+                            <div class="perm-section">
+                                <h6>Communication</h6>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_communicate" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_communicate" value="on" id="perm_communicate" {% if profile.can_communicate %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_communicate">Send SMS / WhatsApp</label>
+                                </div>
+                            </div>
+                            
+                            <div class="perm-section">
+                                <h6>Administration</h6>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_manage_users" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_manage_users" value="on" id="perm_manage_users" {% if profile.can_manage_users %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_manage_users">Manage Users</label>
+                                </div>
+                                <div class="form-check mb-1">
+                                    <input type="hidden" name="can_access_settings" value="off">
+                                    <input class="form-check-input perm-check" type="checkbox" name="can_access_settings" value="on" id="perm_access_settings" {% if profile.can_access_settings %}checked{% endif %}>
+                                    <label class="form-label perm-check-label" for="perm_access_settings">App & Landing Page Settings</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <h6 class="mb-0">User Info</h6>
-            </div>
-            <div class="card-body">
-                <p><strong>Current Role:</strong>
-                    {% if profile.role == 'admin' %}
-                        <span class="badge bg-danger">Administrator</span>
-                    {% elif profile.role == 'manager' %}
-                        <span class="badge bg-warning">Manager</span>
-                    {% elif profile.role == 'accountant' %}
-                        <span class="badge bg-primary">Accountant</span>
-                    {% else %}
-                        <span class="badge bg-secondary">Viewer</span>
-                    {% endif %}
-                </p>
-                <p><strong>Created:</strong> {{ edit_user.date_joined }}</p>
-                <p><strong>Last Login:</strong> {{ edit_user.last_login|default:"Never" }}</p>
-            </div>
-        </div>
+    
+    <div class="mt-3">
+        <button type="submit" class="btn btn-primary btn-lg">
+            <i class="bi bi-save"></i> Update User
+        </button>
+        <a href="{% url 'user_list' %}" class="btn btn-secondary btn-lg ms-2">Cancel</a>
     </div>
-</div>
+</form>
+
+<script>
+const presets = {
+    admin: {
+        can_access_dashboard: true, can_view_beneficiaries: true, can_edit_beneficiaries: true,
+        can_delete_beneficiaries: true, can_view_invoices: true, can_edit_invoices: true,
+        can_delete_invoices: true, can_view_payments: true, can_edit_payments: true,
+        can_delete_payments: true, can_view_expenses: true, can_edit_expenses: true,
+        can_delete_expenses: true, can_view_reports: true, can_export_reports: true,
+        can_view_journal: true, can_edit_journal: true, can_view_budgets: true,
+        can_edit_budgets: true, can_delete_budgets: true, can_access_management: true,
+        can_view_employees: true, can_edit_employees: true, can_communicate: true,
+        can_manage_users: true, can_access_settings: true
+    },
+    manager: {
+        can_access_dashboard: true, can_view_beneficiaries: true, can_edit_beneficiaries: true,
+        can_delete_beneficiaries: true, can_view_invoices: true, can_edit_invoices: true,
+        can_delete_invoices: true, can_view_payments: true, can_edit_payments: true,
+        can_delete_payments: true, can_view_expenses: true, can_edit_expenses: true,
+        can_delete_expenses: true, can_view_reports: true, can_export_reports: true,
+        can_view_journal: true, can_edit_journal: true, can_view_budgets: true,
+        can_edit_budgets: true, can_delete_budgets: true, can_access_management: true,
+        can_view_employees: true, can_edit_employees: true, can_communicate: true,
+        can_manage_users: false, can_access_settings: false
+    },
+    accountant: {
+        can_access_dashboard: true, can_view_beneficiaries: true, can_edit_beneficiaries: true,
+        can_delete_beneficiaries: false, can_view_invoices: true, can_edit_invoices: true,
+        can_delete_invoices: false, can_view_payments: true, can_edit_payments: true,
+        can_delete_payments: false, can_view_expenses: true, can_edit_expenses: true,
+        can_delete_expenses: false, can_view_reports: true, can_export_reports: false,
+        can_view_journal: true, can_edit_journal: false, can_view_budgets: true,
+        can_edit_budgets: false, can_delete_budgets: false, can_access_management: false,
+        can_view_employees: false, can_edit_employees: false, can_communicate: true,
+        can_manage_users: false, can_access_settings: false
+    },
+    viewer: {
+        can_access_dashboard: true, can_view_beneficiaries: true, can_edit_beneficiaries: false,
+        can_delete_beneficiaries: false, can_view_invoices: true, can_edit_invoices: false,
+        can_delete_invoices: false, can_view_payments: true, can_edit_payments: false,
+        can_delete_payments: false, can_view_expenses: true, can_edit_expenses: false,
+        can_delete_expenses: false, can_view_reports: true, can_export_reports: false,
+        can_view_journal: false, can_edit_journal: false, can_view_budgets: false,
+        can_edit_budgets: false, can_delete_budgets: false, can_access_management: false,
+        can_view_employees: false, can_edit_employees: false, can_communicate: false,
+        can_manage_users: false, can_access_settings: false
+    }
+};
+
+function setCheckboxes(permissions) {
+    document.querySelectorAll('.perm-check').forEach(cb => {
+        cb.checked = permissions[cb.name] || false;
+    });
+    document.querySelectorAll('.role-preset-btn').forEach(btn => btn.classList.remove('active'));
+}
+
+function applyPreset(name) {
+    setCheckboxes(presets[name]);
+    event.target.classList.add('active');
+}
+
+function selectAll() {
+    document.querySelectorAll('.perm-check').forEach(cb => cb.checked = true);
+    document.querySelectorAll('.role-preset-btn').forEach(btn => btn.classList.remove('active'));
+}
+
+function deselectAll() {
+    document.querySelectorAll('.perm-check').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.role-preset-btn').forEach(btn => btn.classList.remove('active'));
+}
+</script>
 {% endblock %}

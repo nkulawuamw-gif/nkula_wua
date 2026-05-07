@@ -94,6 +94,40 @@
                         <small class="text-muted d-block">Tax ID</small>
                         <div class="fw-medium">{{ beneficiary.tax_id|default:"-" }}</div>
                     </div>
+                    <div class="col-6">
+                        <small class="text-muted d-block">Tap Installed Date</small>
+                        <div class="fw-medium">{{ beneficiary.tap_installed_date|default:"-" }}</div>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted d-block">Last Activated</small>
+                        <div class="fw-medium">
+                            {% if latest_activated %}
+                                {{ latest_activated.changed_at|date:"Y-m-d H:i" }}
+                                <br><small class="text-muted">by {{ latest_activated.user.username|default:"System" }}</small>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted d-block">Last Deactivated</small>
+                        <div class="fw-medium">
+                            {% if latest_deactivated %}
+                                {{ latest_deactivated.changed_at|date:"Y-m-d H:i" }}
+                                <br><small class="text-muted">by {{ latest_deactivated.user.username|default:"System" }}</small>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted d-block">Created</small>
+                        <div class="fw-medium">{{ beneficiary.created_at|date:"Y-m-d H:i" }}</div>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted d-block">Last Updated</small>
+                        <div class="fw-medium">{{ beneficiary.updated_at|date:"Y-m-d H:i" }}</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -174,6 +208,10 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link px-4" id="balances-tab" data-bs-toggle="pill" data-bs-target="#balances" type="button" role="tab">
                     <i class="bi bi-clock-history me-2"></i>Balance History
+                </button>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link px-4" id="status-tab" data-bs-toggle="pill" data-bs-target="#status" type="button" role="tab">
+                    <i class="bi bi-clock-history me-2"></i>Status History
                 </button>
             </li>
         </ul>
@@ -318,6 +356,45 @@
                             <tr><td colspan="4" class="text-center text-muted py-5">
                                 <i class="bi bi-inbox fs-1 d-block mb-2 text-opacity-25"></i>
                                 <span class="text-muted">No opening balance history</span>
+                            </td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="tab-pane fade" id="status" role="tabpanel">
+                <h5 class="mb-4 fw-bold">Status Change History</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover border-0" style="border-radius: 12px; overflow: hidden;">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="border-0 px-3 py-3">Date & Time</th>
+                                <th class="border-0 px-3 py-3">Status</th>
+                                <th class="border-0 px-3 py-3">Changed By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in status_logs %}
+                            <tr class="align-middle">
+                                <td class="px-3 py-3">{{ log.changed_at|date:"Y-m-d H:i" }}</td>
+                                <td class="px-3 py-3">
+                                    {% if log.status == 'activated' %}
+                                        <span class="badge bg-success rounded-pill px-3 py-2">
+                                            <i class="bi bi-check-circle me-1"></i>Activated
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary rounded-pill px-3 py-2">
+                                            <i class="bi bi-slash-circle me-1"></i>Deactivated
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-3 py-3">{{ log.user.username|default:"System" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-center text-muted py-5">
+                                <i class="bi bi-inbox fs-1 d-block mb-2 text-opacity-25"></i>
+                                <span class="text-muted">No status change history</span>
                             </td></tr>
                             {% endfor %}
                         </tbody>

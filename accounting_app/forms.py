@@ -36,7 +36,7 @@ class AccountForm(forms.ModelForm):
 class BeneficiaryForm(forms.ModelForm):
     class Meta:
         model = Beneficiary
-        fields = ["name", "beneficiary_type", "phone", "village", "scheme", "country", "tax_id", "household_count", "credit_limit", "payment_terms", "is_active"]
+        fields = ["name", "beneficiary_type", "phone", "village", "scheme", "country", "tax_id", "household_count", "credit_limit", "payment_terms", "tap_installed_date", "is_active"]
         exclude = ["total_bill", "total_paid", "total_outstanding"]
         widgets = {
             "name": forms.TextInput(attrs={"required": "required"}),
@@ -44,6 +44,7 @@ class BeneficiaryForm(forms.ModelForm):
             "village": forms.TextInput(attrs={"required": "required"}),
             "scheme": forms.Select(attrs={"required": "required"}),
             "household_count": forms.NumberInput(attrs={"required": "required", "min": "0"}),
+            "tap_installed_date": forms.DateInput(attrs={"type": "date"}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -53,6 +54,10 @@ class BeneficiaryForm(forms.ModelForm):
         self.fields['village'].required = True
         self.fields['scheme'].required = True
         self.fields['household_count'].required = True
+        self.fields['is_active'].required = False
+        # Handle checkbox not being sent when unchecked
+        if self.data and 'is_active' not in self.data:
+            self.initial['is_active'] = False
 
 
 class VendorForm(forms.ModelForm):

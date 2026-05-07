@@ -1,4 +1,5 @@
 {% load static %}
+{% load custom_filters %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +8,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Nkula Water Users Association (WUA) - Good and Quality Water for All</title>
+    <title>Nkula Water Users Association (WUA) - Quality water for All!!</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <style>
@@ -98,7 +99,7 @@
             align-items: center;
             justify-content: center;
             padding: 120px 5% 80px;
-            background: linear-gradient(135deg, {{ landing_settings.hero_gradient_start|default:'#0f1923' }} 0%, {{ landing_settings.hero_gradient_mid|default:'#1a2a3a' }} 40%, {{ landing_settings.hero_gradient_end|default:'#0984e3' }} 100%);
+            background: linear-gradient(135deg, rgba(15, 25, 35, 0.85) 0%, rgba(26, 42, 58, 0.80) 40%, rgba(9, 132, 227, 0.75) 100%), url('{% static "accounting_app/images/intake 2.jpg" %}') center/cover no-repeat;
             position: relative;
             overflow: hidden;
             text-align: center;
@@ -140,6 +141,19 @@
             font-size: 2rem;
             margin-bottom: 20px;
             color: rgba(255,255,255,0.9);
+            overflow: hidden;
+            white-space: nowrap;
+            animation: swipeBoth 8s ease-in-out infinite;
+        }
+
+        @keyframes swipeBoth {
+            0% { transform: translateX(100vw); }
+            15% { transform: translateX(0); }
+            40% { transform: translateX(0); }
+            50% { transform: translateX(-100vw); }
+            65% { transform: translateX(0); }
+            90% { transform: translateX(0); }
+            100% { transform: translateX(100vw); }
         }
 
         .hero-content p {
@@ -239,27 +253,49 @@
         }
 
         .vision-box {
-            background: #ffffff;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
             padding: 35px 25px;
-            border-radius: 15px;
+            border-radius: 20px;
             text-align: center;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), inset 0 0 15px rgba(255, 255, 255, 0.2);
             transition: transform 0.3s, box-shadow 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .vision-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -50%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .vision-box:hover::before {
+            left: 50%;
         }
 
         .vision-box:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.2), inset 0 0 20px rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
         }
 
         .vision-box h3 {
-            color: var(--text-primary);
+            color: #ffffff;
             font-size: 1.5rem;
             margin-bottom: 15px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
         .vision-box p, .vision-box li {
-            color: var(--text-secondary);
+            color: rgba(255, 255, 255, 0.9);
             font-size: 1rem;
             line-height: 1.6;
         }
@@ -518,6 +554,7 @@
             overflow: hidden;
             box-shadow: 0 5px 20px rgba(0,0,0,0.05);
             transition: transform 0.3s, box-shadow 0.3s;
+            background: #1a2a3a;
         }
 
         .gallery-item:hover {
@@ -527,9 +564,11 @@
 
         .gallery-item img {
             width: 100%;
-            height: 200px;
-            object-fit: cover;
+            height: 250px;
+            object-fit: contain;
             display: block;
+            filter: brightness(1.05) contrast(1.1) saturate(1.05);
+            background: linear-gradient(135deg, #0f1923, #1a2a3a);
         }
 
         .gallery-caption {
@@ -550,9 +589,51 @@
             margin: 5px 0 0;
         }
 
-        /* CONTACT SECTION */
-        .contact-grid {
-            display: grid;
+/* LIGHTBOX */
+.lightbox-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.9);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+}
+.lightbox-overlay.active {
+    display: flex;
+}
+.lightbox-overlay img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 0 40px rgba(0,0,0,0.5);
+}
+.lightbox-overlay .close-btn {
+    position: absolute;
+    top: 20px;
+    right: 40px;
+    color: #fff;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+    line-height: 1;
+}
+.lightbox-overlay .close-btn:hover {
+    color: #ff4444;
+}
+.gallery-item {
+    cursor: pointer;
+}
+
+/* CONTACT SECTION */
+.contact-grid {
+    display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 30px;
             max-width: 1200px;
@@ -620,7 +701,7 @@
 <body>
     <!-- NAVBAR -->
     <nav class="navbar-custom">
-        <a href="#" class="navbar-brand">Nkula<span>WUA</span></a>
+        <a href="#" class="navbar-brand">{{ landing_settings.site_name|default:'Nkula' }} <span>W.U.A</span></a>
         <div class="nav-links">
             <a href="#about">About</a>
             <a href="#vision-mission">Vision & Mission</a>
@@ -633,9 +714,9 @@
     <!-- HERO SECTION -->
     <section class="hero-section" id="hero">
         <div class="hero-content">
-            <h1>🌊 Nkula Water Users Association (WUA)</h1>
-            <h2>Good and Quality Water for All</h2>
-            <p>Nkula Water Users Association is a community-based institution established under the Government of Malawi with African Development Bank (ADB) support to enhance safe, sustainable, and reliable water access in communities.</p>
+            <h1>{{ landing_settings.hero_title|default:'Nkula Water Users Association (WUA)' }}</h1>
+            <h2>{{ landing_settings.hero_subtitle|default:'Quality water for All!!' }}</h2>
+            <p>{{ landing_settings.hero_description|default:'Nkula Water Users Association (WUA) is a community-based organization established by the Government of Malawi, with financial support from the African Development Bank (ADB), to provide safe, sustainable, and reliable water access to local communities.' }}</p>
             <div class="hero-buttons">
                 <a href="#about" class="btn-hero btn-hero-primary">
                     <i class="bi bi-search"></i> Explore Our Work
@@ -649,33 +730,98 @@
 
     <!-- ABOUT SECTION -->
     <section class="section-padding bg-light-gray" id="about">
-        <h2 class="section-title">📌 About Us</h2>
-        <p class="section-subtitle">Who We Are</p>
+        <h2 class="section-title">{{ landing_settings.about_title|default:'About Us' }}</h2>
+        <p class="section-subtitle">{{ landing_settings.about_subtitle|default:'Who We Are' }}</p>
         <div class="about-content">
-            <p>Nkula Water Users Association (WUA) is a community-based institution established in 2013 under the Government of Malawi with financial support from the African Development Bank (ADB). Our purpose is to empower communities to take full responsibility in water management and support community development initiatives.</p>
-            <p>We work with local leaders and community members to ensure water schemes are properly managed, protected, and maintained for the benefit of all.</p>
+            {% for paragraph in landing_settings.about_content|default:'Nkula Water Users Association (WUA) is a community-based organization established in 2013 by the Government of Malawi, with financial support from the African Development Bank (ADB). We exist to empower communities to take ownership of their water resources and drive local development initiatives.\n\nWe partner with local leaders and community members to ensure that all water schemes are effectively managed, safeguarded, and maintained for the benefit of everyone.'|split:'\n\n' %}
+            <p>{{ paragraph }}</p>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- WATER SOURCES SECTION -->
+    <section class="section-padding" id="water-sources" style="background: linear-gradient(135deg, {{ landing_settings.cta_gradient_start|default:'#0984e3' }} 0%, {{ landing_settings.cta_gradient_end|default:'#00b894' }} 100%); color: white;">
+        <h2 class="section-title" style="color: white;">{{ landing_settings.water_sources_title|default:'Our Water Sources' }}</h2>
+        <p class="section-subtitle" style="color: rgba(255,255,255,0.9);">{{ landing_settings.water_sources_subtitle|default:'Water infrastructure and natural sources sustaining our communities' }}</p>
+        <div class="row g-4 mb-5">
+            <div class="col-md-3">
+                <div class="card border-0 overflow-hidden" style="height: 300px; border-radius: 20px;">
+                    <img src="{% static 'accounting_app/images/Bububu intanke.png' %}" alt="Bububu Intake" style="width: 100%; height: 100%; object-fit: contain; background: rgba(255,255,255,0.1);">
+                </div>
+                <p class="text-center mt-3" style="color: rgba(255,255,255,0.9); font-style: italic;">Bububu Intake</p>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 overflow-hidden" style="height: 300px; border-radius: 20px;">
+                    <img src="{% static 'accounting_app/images/Bububu Storage Tank.png' %}" alt="Bububu Tank" style="width: 100%; height: 100%; object-fit: contain; background: rgba(255,255,255,0.1);">
+                </div>
+                <p class="text-center mt-3" style="color: rgba(255,255,255,0.9); font-style: italic;">Bububu Tank</p>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 overflow-hidden" style="height: 300px; border-radius: 20px;">
+                    <img src="{% static 'accounting_app/images/Kanjomboka Weir.png' %}" alt="Kajoboka Weir" style="width: 100%; height: 100%; object-fit: contain; background: rgba(255,255,255,0.1);">
+                </div>
+                <p class="text-center mt-3" style="color: rgba(255,255,255,0.9); font-style: italic;">Kajoboka Weir</p>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 overflow-hidden" style="height: 300px; border-radius: 20px;">
+                    <img src="{% static 'accounting_app/images/Mangale tank.png' %}" alt="Mangale Tank" style="width: 100%; height: 100%; object-fit: contain; background: rgba(255,255,255,0.1);">
+                </div>
+                <p class="text-center mt-3" style="color: rgba(255,255,255,0.9); font-style: italic;">Mangale Tank</p>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 overflow-hidden" style="height: 300px; border-radius: 20px;">
+                    <img src="{% static 'accounting_app/images/intake 3.png' %}" alt="Milala Intake" style="width: 100%; height: 100%; object-fit: contain; background: rgba(255,255,255,0.1);">
+                </div>
+                <p class="text-center mt-3" style="color: rgba(255,255,255,0.9); font-style: italic;">Milala Intake</p>
+            </div>
+        </div>
+        <h3 class="text-center mb-4" style="font-size: 1.5rem; font-weight: 700;">Our Water Schemes</h3>
+        <div class="schemes-grid" style="max-width: 1200px; margin: 0 auto;">
+            {% for scheme in landing_settings.schemes_list|scheme_list %}
+            <div class="scheme-box" style="background: rgba(255,255,255,0.95); padding: 30px 25px; border-radius: 15px; text-align: center; box-shadow: 0 5px 20px rgba(0,0,0,0.1); transition: transform 0.3s;">
+                <h4 style="color: {{ landing_settings.primary_color|default:'#0984e3' }}; font-size: 1.3rem; margin-bottom: 15px;">{{ scheme.name }}</h4>
+                <p style="color: #636e72; font-size: 1rem;">{{ scheme.desc }}</p>
+            </div>
+            {% empty %}
+            <div class="scheme-box" style="background: rgba(255,255,255,0.95); padding: 30px 25px; border-radius: 15px; text-align: center; box-shadow: 0 5px 20px rgba(0,0,0,0.1);">
+                <h4 style="color: #0984e3; font-size: 1.3rem; margin-bottom: 15px;">Mangale Scheme</h4>
+                <p style="color: #636e72; font-size: 1rem;">Serving communities with reliable water access</p>
+            </div>
+            <div class="scheme-box" style="background: rgba(255,255,255,0.95); padding: 30px 25px; border-radius: 15px; text-align: center; box-shadow: 0 5px 20px rgba(0,0,0,0.1);">
+                <h4 style="color: #0984e3; font-size: 1.3rem; margin-bottom: 15px;">Nkala Scheme</h4>
+                <p style="color: #636e72; font-size: 1rem;">Managed water infrastructure for local villages</p>
+            </div>
+            <div class="scheme-box" style="background: rgba(255,255,255,0.95); padding: 30px 25px; border-radius: 15px; text-align: center; box-shadow: 0 5px 20px rgba(0,0,0,0.1);">
+                <h4 style="color: #0984e3; font-size: 1.3rem; margin-bottom: 15px;">Dodza Scheme</h4>
+                <p style="color: #636e72; font-size: 1rem;">Sustainable water solutions for the community</p>
+            </div>
+            <div class="scheme-box" style="background: rgba(255,255,255,0.95); padding: 30px 25px; border-radius: 15px; text-align: center; box-shadow: 0 5px 20px rgba(0,0,0,0.1);">
+                <h4 style="color: #0984e3; font-size: 1.3rem; margin-bottom: 15px;">Milala Scheme</h4>
+                <p style="color: #636e72; font-size: 1rem;">Clean water access for thousands of residents</p>
+            </div>
+            {% endfor %}
         </div>
     </section>
 
     <!-- VISION, MISSION & VALUES -->
-    <section class="section-padding" id="vision-mission">
-        <h2 class="section-title">🎯 Vision, Mission & Values</h2>
-        <p class="section-subtitle">Our guiding principles</p>
+    <section class="section-padding" id="vision-mission" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <h2 class="section-title" style="color: white;">{{ landing_settings.vision_title|default:'Vision, Mission & Values' }}</h2>
+        <p class="section-subtitle" style="color: rgba(255,255,255,0.9);">{{ landing_settings.vision_subtitle|default:'Our guiding principles' }}</p>
         <div class="vision-grid">
             <div class="vision-box">
                 <h3>Our Vision</h3>
-                <p>Good and quality water for all.</p>
+                <p>{{ landing_settings.vision_text|default:'Quality water for All!!' }}</p>
             </div>
             <div class="vision-box">
                 <h3>Our Mission</h3>
-                <p>Empowering the community, promoting good health, and adapting and mitigating the effects of climate change through sustainable water management.</p>
+                <p>{{ landing_settings.mission_text|default:'To empower communities, promote public health, and build climate resilience through sustainable and responsible water management.' }}</p>
             </div>
             <div class="vision-box">
                 <h3>Our Values</h3>
                 <ul>
-                    <li>✅ Transparency and Accountability</li>
-                    <li>✅ Honesty</li>
-                    <li>✅ Teamwork</li>
+                    {% for value in landing_settings.values_text|default:'Transparency & Accountability\nIntegrity & Honesty\nTeamwork & Collaboration\nCommunity Ownership'|split:'\n' %}
+                    <li>{{ value }}</li>
+                    {% endfor %}
                 </ul>
             </div>
         </div>
@@ -736,57 +882,40 @@
 
     <!-- LOCATION SECTION -->
     <section class="section-padding" id="location">
-        <h2 class="section-title">🗺️ Our Location</h2>
-        <p class="section-subtitle">Where We Operate</p>
+        <h2 class="section-title">{{ landing_settings.location_title|default:'Our Location' }}</h2>
+        <p class="section-subtitle">{{ landing_settings.location_subtitle|default:'Where We Operate' }}</p>
         <div class="location-content">
             <div class="location-icon">
                 <i class="bi bi-geo-alt-fill"></i>
             </div>
             <p>Nkula Water Users Association is located at:</p>
-            <p><strong>📍 Matandika Village, T/A Nkula, Machinga District, Malawi</strong></p>
-            <p>We serve multiple villages through our managed schemes and catchment areas.</p>
-        </div>
-    </section>
-
-    <!-- WATER SCHEMES SECTION -->
-    <section class="section-padding bg-light-gray" id="schemes">
-        <h2 class="section-title">🚰 Our Water Schemes</h2>
-        <p class="section-subtitle">Schemes and Catchment Areas</p>
-        <div class="schemes-grid">
-            <div class="scheme-box">
-                <h4>Mangale Scheme</h4>
-                <p>Serving communities with reliable water access</p>
-            </div>
-            <div class="scheme-box">
-                <h4>Nkala Scheme</h4>
-                <p>Managed water infrastructure for local villages</p>
-            </div>
-            <div class="scheme-box">
-                <h4>Dodza Scheme</h4>
-                <p>Sustainable water solutions for the community</p>
-            </div>
-            <div class="scheme-box">
-                <h4>Milala Scheme</h4>
-                <p>Clean water access for thousands of residents</p>
-            </div>
-        </div>
-        <div class="text-center mt-4">
-            <p>These schemes provide water to thousands of community members across Machinga District.</p>
+            <p><strong>{{ landing_settings.location_address|default:'Matandika Village, T/A Nkula, Machinga District, Malawi' }}</strong></p>
+            <p>{{ landing_settings.location_description|default:'We serve multiple villages through our managed schemes and catchment areas.' }}</p>
         </div>
     </section>
 
     <!-- VILLAGES SECTION -->
     <section class="section-padding" id="villages">
-        <h2 class="section-title">🏘️ Villages Under Nkula WUA</h2>
-        <p class="section-subtitle">Communities Served</p>
+        <h2 class="section-title">{{ landing_settings.villages_title|default:'Villages Under Nkula WUA' }}</h2>
+        <p class="section-subtitle">{{ landing_settings.villages_subtitle|default:'Communities Served' }}</p>
         <div class="villages-grid">
+            {% for scheme in landing_settings.villages_list|village_list %}
+            <div class="village-group">
+                <h4>{{ scheme.name }}</h4>
+                <ul>
+                    {% for village in scheme.villages %}
+                    <li>{{ village }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% empty %}
             <div class="village-group">
                 <h4>Mangale Scheme</h4>
                 <ul>
                     <li>GVH Lipongo</li>
                     <li>Ndanje</li>
                     <li>Maoni</li>
-                    <li>M’balaka</li>
+                    <li>M'balaka</li>
                 </ul>
             </div>
             <div class="village-group">
@@ -812,88 +941,111 @@
                     <li>Mlawe</li>
                 </ul>
             </div>
+            {% endfor %}
         </div>
     </section>
 
     <!-- GALLERY SECTION -->
     <section class="section-padding bg-light-gray" id="gallery">
-        <h2 class="section-title">📷 Gallery</h2>
-        <p class="section-subtitle">Photos of boreholes, water tanks, meetings, and repairs</p>
+        <h2 class="section-title">{{ landing_settings.gallery_title|default:'Gallery' }}</h2>
+        <p class="section-subtitle">{{ landing_settings.gallery_subtitle|default:'Photos of water infrastructure, intakes, pipes, and field work' }}</p>
         <div class="gallery-grid">
-            {% for image in gallery_images %}
-                <div class="gallery-item">
-                    <img src="{{ image.image.url }}" alt="{{ image.title }}">
-                    {% if image.title or image.description %}
-                        <div class="gallery-caption">
-                            {% if image.title %}
-                                <h5>{{ image.title }}</h5>
-                            {% endif %}
-                            {% if image.description %}
-                                <p>{{ image.description }}</p>
-                            {% endif %}
-                        </div>
-                    {% endif %}
+            <div class="gallery-item">
+                <img src="{% static 'accounting_app/images/milala pipe laying.jpg' %}" alt="Milala Pipe Laying">
+                <div class="gallery-caption">
+                    <h5>Water Intake System</h5>
                 </div>
-            {% empty %}
-                <div class="text-center col-12">
-                    <p class="text-muted">Gallery images will be added soon by the admin.</p>
+            </div>
+            <div class="gallery-item">
+                <img src="{% static 'accounting_app/images/intake 3.png' %}" alt="Intake Infrastructure">
+                <div class="gallery-caption">
+                    <h5>Intake Infrastructure</h5>
                 </div>
-            {% endfor %}
+            </div>
+            <div class="gallery-item">
+                <img src="{% static 'accounting_app/images/pipes.png' %}" alt="Water Distribution Pipes">
+                <div class="gallery-caption">
+                    <h5>Water Distribution Pipes</h5>
+                </div>
+            </div>
+            <div class="gallery-item">
+                <img src="{% static 'accounting_app/images/pulmbers.png' %}" alt="Plumbers at Work">
+                <div class="gallery-caption">
+                    <h5>Plumbers at Work</h5>
+                </div>
+            </div>
+            <div class="gallery-item">
+                <img src="{% static 'accounting_app/images/plumbers survey.png' %}" alt="Survey Work">
+                <div class="gallery-caption">
+                    <h5>Survey Work</h5>
+                </div>
+            </div>
+            <div class="gallery-item">
+                <img src="{% static 'accounting_app/images/milala survey.png' %}" alt="Milala Scheme Survey">
+                <div class="gallery-caption">
+                    <h5>Milala Scheme Survey</h5>
+                </div>
+            </div>
+            <div class="gallery-item">
+                <img src="{% static 'accounting_app/images/intake 2.jpg' %}" alt="Water Intake Source">
+                <div class="gallery-caption">
+                    <h5>Water Intake Source</h5>
+                </div>
+            </div>
+        </div>
+    </section>
+                </div>
+            </div>
         </div>
     </section>
 
     <!-- PROJECTS SECTION -->
-    <section class="section-padding bg-light-gray" id="projects">
-        <h2 class="section-title">📊 Projects & Achievements</h2>
-        <p class="section-subtitle">Our Progress</p>
+    <section class="section-padding" id="projects" style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);">
+        <h2 class="section-title">{{ landing_settings.projects_title|default:'Projects & Achievements' }}</h2>
+        <p class="section-subtitle">{{ landing_settings.projects_subtitle|default:'Our Progress' }}</p>
         <div class="projects-content">
-            <p>Nkula WUA is committed to improving water availability and sustainability by supporting:</p>
+            <p>{{ landing_settings.projects_intro|default:'Nkula WUA is committed to improving water availability and sustainability by supporting:' }}</p>
             <ul>
-                <li>✅ Water scheme rehabilitation</li>
-                <li>✅ Community capacity building</li>
-                <li>✅ Water point monitoring</li>
-                <li>✅ Hygiene and sanitation awareness</li>
-                <li>✅ Catchment protection programs</li>
+                {% for item in landing_settings.projects_items|default:'Water scheme rehabilitation\nCommunity capacity building\nWater point monitoring\nHygiene and sanitation awareness\nCatchment protection programs'|split:'\n' %}
+                <li>{{ item }}</li>
+                {% endfor %}
             </ul>
-            <p class="mt-4">We believe safe water is the foundation of a healthy and productive community.</p>
+            <p class="mt-4">{{ landing_settings.projects_outro|default:'We believe safe water is the foundation of a healthy and productive community.' }}</p>
         </div>
     </section>
 
     <!-- NEWS SECTION -->
-    <section class="section-padding" id="news">
-        <h2 class="section-title">📰 News & Updates</h2>
-        <p class="section-subtitle">Latest Updates</p>
+    <section class="section-padding" id="news" style="background: linear-gradient(135deg, #cce5ff 0%, #99ccff 100%);">
+        <h2 class="section-title">{{ landing_settings.news_title|default:'News & Updates' }}</h2>
+        <p class="section-subtitle">{{ landing_settings.news_subtitle|default:'Latest Updates' }}</p>
         <div class="news-content">
-            <p>This section can show:</p>
             <ul style="list-style: none; padding: 0;">
-                <li>✅ Meeting announcements</li>
-                <li>✅ Scheme maintenance updates</li>
-                <li>✅ Community sanitation campaigns</li>
-                <li>✅ Training and awareness programs</li>
+                {% for item in landing_settings.news_content|default:'Meeting announcements\nScheme maintenance updates\nCommunity sanitation campaigns\nTraining and awareness programs'|split:'\n' %}
+                <li>✅ {{ item }}</li>
+                {% endfor %}
             </ul>
-            <p class="mt-4"><em>Stay updated with the latest activities and announcements from Nkula WUA.</em></p>
+            <p class="mt-4"><em>{{ landing_settings.news_intro|default:'Stay updated with the latest activities and announcements from Nkula WUA.' }}</em></p>
         </div>
     </section>
 
     <!-- MEETING OBJECTIVES -->
-    <section class="section-padding bg-light-gray" id="meeting-objectives">
-        <h2 class="section-title">📅 Meeting Objectives</h2>
-        <p class="section-subtitle">Our Regular Meeting Goals</p>
+    <section class="section-padding" id="meeting-objectives" style="background: linear-gradient(135deg, #ffe0cc 0%, #ffcda3 100%);">
+        <h2 class="section-title">{{ landing_settings.meeting_objectives_title|default:'Meeting Objectives' }}</h2>
+        <p class="section-subtitle">{{ landing_settings.meeting_objectives_subtitle|default:'Our Regular Meeting Goals' }}</p>
         <div class="objectives-content">
-            <p>Our regular meetings are aimed at:</p>
+            <p>{{ landing_settings.meeting_objectives_intro|default:'Our regular meetings are aimed at:' }}</p>
             <ul>
-                <li>✅ Discussing ways to improve the performance of water schemes</li>
-                <li>✅ Reviewing completed activities</li>
-                <li>✅ Identifying challenges faced in the schemes</li>
-                <li>✅ Planning solutions and community action strategies</li>
+                {% for item in landing_settings.meeting_objectives_items|default:'Discussing ways to improve the performance of water schemes\nReviewing completed activities\nIdentifying challenges faced in the schemes\nPlanning solutions and community action strategies'|split:'\n' %}
+                <li>✅ {{ item }}</li>
+                {% endfor %}
             </ul>
         </div>
     </section>
 
     <!-- CALL TO ACTION -->
     <section class="cta-section" id="cta">
-        <h2>🤝 Join Us in Building Sustainable Water Access</h2>
-        <p>Nkula WUA invites partners, community members, and stakeholders to support the mission of providing safe and sustainable water. Together we can protect our water sources and improve lives.</p>
+        <h2>{{ landing_settings.cta_title|default:'Join Us in Building Sustainable Water Access' }}</h2>
+        <p>{{ landing_settings.cta_description|default:'Nkula WUA invites partners, community members, and stakeholders to support the mission of providing safe and sustainable water. Together we can protect our water sources and improve lives.' }}</p>
         <div>
             <a href="#contact" class="btn-cta-white">
                 <i class="bi bi-heart-fill"></i> Support Our Work
@@ -906,40 +1058,66 @@
 
     <!-- CONTACT SECTION -->
     <section class="section-padding bg-light-gray" id="contact">
-        <h2 class="section-title">📞 Contact Us</h2>
+        <h2 class="section-title">Contact Us</h2>
         <p class="section-subtitle">Contact Nkula Water Users Association</p>
         <div class="contact-grid">
             <div class="contact-item">
                 <i class="bi bi-geo-alt-fill"></i>
                 <h4>Location</h4>
-                <p>Matandika Village, T/A Nkula, Machinga District, Malawi</p>
+                <p>{{ landing_settings.location_address|default:'Matandika Village, T/A Nkula, Machinga District, Malawi' }}</p>
             </div>
             <div class="contact-item">
                 <i class="bi bi-phone-fill"></i>
                 <h4>Phone</h4>
-                <p>+265 982 960 373</p>
+                <p>{{ landing_settings.contact_phone|default:'+265 982 960 373' }}</p>
             </div>
             <div class="contact-item">
                 <i class="bi bi-envelope-fill"></i>
                 <h4>Email</h4>
-                <p>nkulawuamw@gmail.com</p>
+                <p>{{ landing_settings.contact_email|default:'nkulawuamw@gmail.com' }}</p>
             </div>
             <div class="contact-item">
                 <i class="bi bi-whatsapp" style="color: {{ landing_settings.whatsapp_color|default:'#25D366' }};"></i>
                 <h4>WhatsApp</h4>
-                <p><a href="https://wa.me/265982960373" target="_blank" style="color: {{ landing_settings.whatsapp_color|default:'#25D366' }}; text-decoration: none; font-weight: 600;">+265 982 960 373</a></p>
+                <p><a href="https://wa.me/{{ landing_settings.contact_whatsapp_raw|default:'265982960373' }}" target="_blank" style="color: {{ landing_settings.whatsapp_color|default:'#25D366' }}; text-decoration: none; font-weight: 600;">{{ landing_settings.contact_whatsapp|default:'+265 982 960 373' }}</a></p>
             </div>
         </div>
     </section>
 
     <!-- FOOTER -->
     <footer class="footer">
-        <p>🌊 Nkula Water Users Association (WUA)</p>
-        <p>Good and Quality Water for All.</p>
-        <p>© 2026 Nkula Water Users Association. All Rights Reserved.</p>
-        <p>Designed for Community Water Development and Sustainability.</p>
+        {% for line in landing_settings.footer_text|default:'Nkula Water Users Association (WUA)\nQuality water for All!!\n2026 Nkula Water Users Association. All Rights Reserved.\nDesigned for Community Water Development and Sustainability.'|split:'\n' %}
+        <p>{{ line }}</p>
+        {% endfor %}
     </footer>
 
+    <!-- LIGHTBOX -->
+    <div class="lightbox-overlay" id="lightbox">
+        <span class="close-btn" id="lightbox-close">&times;</span>
+        <img id="lightbox-img" src="" alt="">
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.querySelectorAll('.gallery-item img').forEach(function(img) {
+            img.addEventListener('click', function(e) {
+                e.stopPropagation();
+                document.getElementById('lightbox-img').src = this.src;
+                document.getElementById('lightbox').classList.add('active');
+            });
+        });
+        document.getElementById('lightbox').addEventListener('click', function() {
+            this.classList.remove('active');
+        });
+        document.getElementById('lightbox-close').addEventListener('click', function(e) {
+            e.stopPropagation();
+            document.getElementById('lightbox').classList.remove('active');
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                document.getElementById('lightbox').classList.remove('active');
+            }
+        });
+    </script>
 </body>
 </html>
