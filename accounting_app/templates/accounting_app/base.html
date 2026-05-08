@@ -579,18 +579,95 @@
             color: white;
         }
         
+        /* ===== SIDEBAR OVERLAY ===== */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 998;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .sidebar-overlay.show {
+            display: block;
+            opacity: 1;
+        }
+        
+        /* ===== MOBILE TOP NAVBAR ===== */
+        .mobile-navbar {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: var(--sidebar-bg);
+            z-index: 1001;
+            align-items: center;
+            padding: 0 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .mobile-navbar .hamburger-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            padding: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        .mobile-navbar .hamburger-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .mobile-navbar .mobile-brand {
+            color: #fff;
+            font-weight: bold;
+            font-size: 16px;
+            margin-left: 12px;
+            letter-spacing: 0.03em;
+        }
+        
+        /* ===== RESPONSIVE SIDEBAR ===== */
         @media (max-width: 768px) {
-            .sidebar { width: 0; padding: 0; overflow: hidden; }
-            .main-content { margin-left: 0; }
+            .mobile-navbar { display: flex; }
+            
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: -280px;
+                width: 260px;
+                height: 100vh;
+                z-index: 999;
+                padding-top: 56px;
+                overflow-y: auto;
+                transition: left 0.3s ease;
+                box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+            }
+            .sidebar.open { left: 0; }
+            
+            .main-content {
+                margin-left: 0;
+                padding: 76px 12px 20px;
+            }
+            
             .dark-mode-toggle {
-                top: 70px;
+                top: 10px;
                 right: 10px;
                 width: 40px;
                 height: 40px;
                 font-size: 16px;
+                z-index: 1002;
             }
             .back-btn {
-                left: 20px;
+                left: 12px;
                 bottom: 80px;
             }
         }
@@ -962,6 +1039,23 @@
             </div>
         </div>
         {% endif %}
+    </nav>
+    
+    <!-- Sidebar Overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+    
+    <!-- Mobile Top Navbar -->
+    <nav class="mobile-navbar">
+        <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Toggle menu">
+            <i class="bi bi-list" id="hamburgerIcon"></i>
+        </button>
+        <span class="mobile-brand">
+            {% if user.userprofile.company_name %}
+                {{ user.userprofile.company_name|default:"Nkula Water" }}
+            {% else %}
+                Nkulawua
+            {% endif %}
+        </span>
     </nav>
     
     <!-- Dark Mode Toggle -->
@@ -1355,6 +1449,45 @@
             activeIncomingCall = null;
         }
     }
+    </script>
+
+    <script>
+    // ===== Mobile Sidebar Toggle =====
+    function toggleSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        const hamburgerIcon = document.getElementById('hamburgerIcon');
+        sidebar.classList.toggle('open');
+        if (sidebar.classList.contains('open')) {
+            overlay.classList.add('show');
+            hamburgerIcon.className = 'bi bi-x-lg';
+        } else {
+            overlay.classList.remove('show');
+            hamburgerIcon.className = 'bi bi-list';
+        }
+    }
+    function closeSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        const hamburgerIcon = document.getElementById('hamburgerIcon');
+        sidebar.classList.remove('open');
+        overlay.classList.remove('show');
+        hamburgerIcon.className = 'bi bi-list';
+    }
+    // Close sidebar when a nav link is clicked (mobile)
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.sidebar a, .sidebar-dropdown-toggle').forEach(function(el) {
+            el.addEventListener('click', function() {
+                if (window.innerWidth <= 768) {
+                    // For dropdown toggles, don't close immediately
+                    if (el.classList.contains('sidebar-dropdown-toggle')) {
+                        return;
+                    }
+                    closeSidebar();
+                }
+            });
+        });
+    });
     </script>
 
     <div class="modal fade" id="confirmationModal" tabindex="-1" data-bs-backdrop="static">

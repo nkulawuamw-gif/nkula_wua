@@ -15,7 +15,7 @@ import sys
 # PATH CONFIGURATION - UPDATE THESE
 # -----------------------------------------------------------------------------
 # Replace <YOUR_USERNAME> with your actual PythonAnywhere username
-username = '<YOUR_USERNAME>'
+username = 'nkulawua'
 project_name = 'djang project'
 
 # Path to your project directory

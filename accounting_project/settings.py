@@ -13,7 +13,7 @@ SECRET_KEY = os.getenv(
     'django-insecure-default-change-this'
 )
 
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = [
     '127.0.0.1',
@@ -132,12 +132,18 @@ LOGIN_REDIRECT_URL = 'superuser_view'
 LOGOUT_REDIRECT_URL = 'login'
 
 # SESSION
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 86400
+SESSION_COOKIE_NAME = 'sessionid'
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_SAVE_EVERY_REQUEST = True
 
 # SECURITY (PRODUCTION SAFE)
-CSRF_COOKIE_SECURE = not DEBUG
-SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+if not DEBUG:
+    SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'False').lower() == 'true'
+    CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'False').lower() == 'true'
 
 SECURE_SSL_REDIRECT = os.getenv(
     'SECURE_SSL_REDIRECT',

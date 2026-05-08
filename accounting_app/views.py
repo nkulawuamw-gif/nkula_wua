@@ -29,7 +29,7 @@ from .models import (
     JournalEntry, JournalEntryLine, Payment, Budget, ActivityLog, UserProfile,
     OpeningBalance, YearEndRollover, Scheme, Village, VillagePopulation,
     BoardOfTrustees, GeneralAssemblyMember, Employee, Report, BeneficiaryHistory,
-    BeneficiaryStatusLog, LoginSession
+    BeneficiaryStatusLog, LoginSession, UserMessage
 )
 from .forms import (
     AccountForm, BeneficiaryForm, VendorForm, InvoiceForm, InvoiceItemForm,
@@ -61,8 +61,7 @@ def save_deleted_record(obj, user):
 
 def landing_page(request):
     if request.user.is_authenticated:
-        from django.contrib.auth import logout
-        logout(request)
+        return redirect("dashboard")
     gallery_images = GalleryImage.objects.filter(is_active=True)[:12]
     services = Service.objects.filter(is_active=True)
     landing_settings = LandingPageSettings.objects.filter(is_active=True).first()
@@ -113,11 +112,6 @@ def generate_expense_number():
 
 def login_view(request):
     if request.user.is_authenticated:
-        if hasattr(request.user, 'userprofile'):
-            p = request.user.userprofile
-            if p.role in ('admin', 'manager') or p.is_superuser:
-                return redirect("superuser_view")
-            return redirect("dashboard")
         return redirect("dashboard")
     if request.method == "POST":
         username = request.POST.get("username")
@@ -140,9 +134,12 @@ def login_view(request):
             )
             
             messages.success(request, f"Welcome back, {user.username}!")
+            next_url = request.GET.get('next') or request.POST.get('next')
+            if next_url:
+                return redirect(next_url)
             if hasattr(user, 'userprofile'):
                 p = user.userprofile
-                if p.role in ('admin', 'manager') or user.is_superuser:
+                if p.role in ('admin', 'manager'):
                     return redirect("superuser_view")
                 return redirect("dashboard")
             return redirect("dashboard")
