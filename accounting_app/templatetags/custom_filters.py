@@ -104,6 +104,20 @@ def scheme_list(text):
             result.append({'name': parts[0].strip(), 'desc': parts[1].strip() if len(parts) > 1 else ''})
     return result
 
+@register.filter
+def sum_debits(entries):
+    try:
+        return sum(e.debit for e in entries)
+    except:
+        return 0
+
+@register.filter
+def sum_credits(entries):
+    try:
+        return sum(e.credit for e in entries)
+    except:
+        return 0
+
 @register.filter(name='village_list')
 def village_list(text):
     """Parse village list from database format"""

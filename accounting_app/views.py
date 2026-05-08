@@ -578,27 +578,6 @@ def beneficiary_toggle_status(request, pk):
 
 
 @login_required
-def beneficiary_detail(request, pk):
-    beneficiary = get_object_or_404(Beneficiary, pk=pk)
-    invoices = beneficiary.invoices.all()
-    payments = beneficiary.payments.all()
-    status_logs = beneficiary.status_logs.all()
-
-    # Get latest activation and deactivation dates
-    latest_activated = status_logs.filter(status='activated').order_by('-changed_at').first()
-    latest_deactivated = status_logs.filter(status='deactivated').order_by('-changed_at').first()
-
-    return render(request, "accounting_app/beneficiary_detail.html", {
-        "beneficiary": beneficiary,
-        "invoices": invoices,
-        "payments": payments,
-        "status_logs": status_logs,
-        "latest_activated": latest_activated,
-        "latest_deactivated": latest_deactivated,
-    })
-
-
-@login_required
 def bulk_beneficiary_create(request):
     if request.method == "POST":
         client_names = request.POST.get('client_names', '').strip()
@@ -5144,12 +5123,20 @@ def beneficiary_detail(request, pk):
     
     current_year = timezone.now().year
     current_opening = beneficiary.get_opening_balance(current_year)
+    balance_history = beneficiary.balance_history.all()
+    status_logs = beneficiary.status_logs.all()
+    latest_activated = status_logs.filter(status='activated').order_by('-changed_at').first()
+    latest_deactivated = status_logs.filter(status='deactivated').order_by('-changed_at').first()
     
     return render(request, "accounting_app/beneficiary_detail.html", {
         "beneficiary": beneficiary,
         "invoices": invoices,
         "payments": payments,
         "opening_balances": opening_balances,
+        "balance_history": balance_history,
+        "status_logs": status_logs,
+        "latest_activated": latest_activated,
+        "latest_deactivated": latest_deactivated,
         "current_opening": current_opening,
         "current_fiscal_year": current_year,
     })

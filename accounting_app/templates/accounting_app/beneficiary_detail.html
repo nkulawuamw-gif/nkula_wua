@@ -335,34 +335,74 @@
             </div>
             
             <div class="tab-pane fade" id="balances" role="tabpanel">
-                <h5 class="mb-4 fw-bold">Balance History</h5>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="mb-0 fw-bold">Balance Sheet</h5>
+                    <div class="d-flex gap-3">
+                        <div class="text-end">
+                            <small class="text-muted d-block">Outstanding Balance</small>
+                            <strong class="{% if beneficiary.total_outstanding > 0 %}text-danger{% endif %} fs-5">
+                                {{ symbol }}{{ beneficiary.total_outstanding|floatformat:2 }}
+                            </strong>
+                        </div>
+                    </div>
+                </div>
                 <div class="table-responsive">
                     <table class="table table-sm table-hover border-0" style="border-radius: 12px; overflow: hidden;">
                         <thead class="bg-light">
                             <tr>
-                                <th class="border-0 px-3 py-3">Fiscal Year</th>
-                                <th class="border-0 px-3 py-3">Opening Balance</th>
-                                <th class="border-0 px-3 py-3">Notes</th>
-                                <th class="border-0 px-3 py-3">Created</th>
+                                <th class="border-0 px-3 py-3">Date</th>
+                                <th class="border-0 px-3 py-3">Type</th>
+                                <th class="border-0 px-3 py-3">Description</th>
+                                <th class="border-0 px-3 py-3">Reference</th>
+                                <th class="border-0 px-3 py-3 text-end">Debit</th>
+                                <th class="border-0 px-3 py-3 text-end">Credit</th>
+                                <th class="border-0 px-3 py-3 text-end">Balance</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for ob in opening_balances %}
+                            {% for entry in balance_history %}
                             <tr class="align-middle">
-                                <td class="px-3 py-3"><strong>FY {{ ob.fiscal_year }}</strong></td>
-                                <td class="px-3 py-3 {% if ob.amount > 0 %}text-warning fw-bold{% endif %}">
-                                    {{ symbol }}{{ ob.amount|floatformat:2 }}
+                                <td class="px-3 py-3 text-nowrap">{{ entry.transaction_date|date:"Y-m-d" }}</td>
+                                <td class="px-3 py-3">
+                                    {% if entry.transaction_type == 'opening_balance' %}
+                                        <span class="badge bg-warning text-dark rounded-pill px-2 py-1">Opening</span>
+                                    {% elif entry.transaction_type == 'invoice' %}
+                                        <span class="badge bg-danger rounded-pill px-2 py-1">Invoice</span>
+                                    {% elif entry.transaction_type == 'payment' %}
+                                        <span class="badge bg-success rounded-pill px-2 py-1">Payment</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary rounded-pill px-2 py-1">{{ entry.transaction_type|title }}</span>
+                                    {% endif %}
                                 </td>
-                                <td class="px-3 py-3 text-muted">{{ ob.notes|default:"-"|truncatechars:50 }}</td>
-                                <td class="px-3 py-3">{{ ob.created_at|date:"Y-m-d" }}</td>
+                                <td class="px-3 py-3">{{ entry.description }}</td>
+                                <td class="px-3 py-3 text-muted">{{ entry.reference_number|default:"-" }}</td>
+                                <td class="px-3 py-3 text-end text-danger fw-medium">
+                                    {% if entry.debit > 0 %}{{ symbol }}{{ entry.debit|floatformat:2 }}{% endif %}
+                                </td>
+                                <td class="px-3 py-3 text-end text-success fw-medium">
+                                    {% if entry.credit > 0 %}{{ symbol }}{{ entry.credit|floatformat:2 }}{% endif %}
+                                </td>
+                                <td class="px-3 py-3 text-end fw-bold {% if entry.running_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {{ symbol }}{{ entry.running_balance|floatformat:2 }}
+                                </td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="4" class="text-center text-muted py-5">
+                            <tr><td colspan="7" class="text-center text-muted py-5">
                                 <i class="bi bi-inbox fs-1 d-block mb-2 text-opacity-25"></i>
-                                <span class="text-muted">No opening balance history</span>
+                                <span class="text-muted">No transaction history</span>
                             </td></tr>
                             {% endfor %}
                         </tbody>
+                        <tfoot class="table-light">
+                            <tr class="fw-bold">
+                                <td colspan="4" class="px-3 py-3 text-end">Totals</td>
+                                <td class="px-3 py-3 text-end text-danger">{{ symbol }}{{ balance_history|sum_debits|floatformat:2 }}</td>
+                                <td class="px-3 py-3 text-end text-success">{{ symbol }}{{ balance_history|sum_credits|floatformat:2 }}</td>
+                                <td class="px-3 py-3 text-end {% if beneficiary.total_outstanding > 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {{ symbol }}{{ beneficiary.total_outstanding|floatformat:2 }}
+                                </td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </div>

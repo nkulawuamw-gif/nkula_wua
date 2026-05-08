@@ -1,7 +1,9 @@
 from django.db.models.signals import post_save, post_delete, post_migrate, pre_save
 from django.contrib.auth.models import User
 from django.dispatch import receiver
-from .models import UserProfile, Account, Beneficiary, Invoice, Payment, Expense, Vendor, BeneficiaryHistory
+from django.db.models import Sum
+from decimal import Decimal
+from .models import UserProfile, Account, Beneficiary, Invoice, Payment, Expense, Vendor, BeneficiaryHistory, BalanceHistory, OpeningBalance
 
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
@@ -245,3 +247,115 @@ def log_account_delete(sender, instance, **kwargs):
         object_id=instance.pk,
         description=f"Account '{instance.name}' ({instance.code}) was deleted"
     )
+
+
+# ─── Balance History Signals ────────────────────────────────────────────────
+
+def recalculate_running_balance(beneficiary_id):
+    entries = BalanceHistory.objects.filter(beneficiary_id=beneficiary_id).order_by('transaction_date', 'created_at')
+    running = Decimal('0.00')
+    for entry in entries:
+        running = running + entry.debit - entry.credit
+        if entry.running_balance != running:
+            BalanceHistory.objects.filter(pk=entry.pk).update(running_balance=running)
+
+
+@receiver(post_save, sender=Invoice)
+def balance_history_invoice_save(sender, instance, created, **kwargs):
+    desc = f"Invoice {instance.invoice_number}"
+    if instance.created_by:
+        desc += f" - created by {instance.created_by.username}"
+
+    BalanceHistory.objects.update_or_create(
+        beneficiary=instance.beneficiary,
+        transaction_type='invoice',
+        transaction_date=instance.issue_date,
+        description=desc,
+        defaults={
+            'reference_number': instance.invoice_number,
+            'debit': instance.total_amount,
+            'credit': Decimal('0.00'),
+            'fiscal_year': instance.issue_date.year,
+            'created_by': instance.created_by,
+        }
+    )
+    recalculate_running_balance(instance.beneficiary_id)
+
+
+@receiver(post_delete, sender=Invoice)
+def balance_history_invoice_delete(sender, instance, **kwargs):
+    BalanceHistory.objects.filter(
+        beneficiary=instance.beneficiary,
+        transaction_type='invoice',
+        reference_number=instance.invoice_number,
+    ).delete()
+    recalculate_running_balance(instance.beneficiary_id)
+
+
+@receiver(post_save, sender=Payment)
+def balance_history_payment_save(sender, instance, created, **kwargs):
+    invoice_ref = instance.invoice.invoice_number if instance.invoice else ''
+    desc = f"Payment of {instance.amount}"
+    if invoice_ref:
+        desc += f" for {invoice_ref}"
+    if instance.created_by:
+        desc += f" - by {instance.created_by.username}"
+
+    BalanceHistory.objects.update_or_create(
+        beneficiary=instance.beneficiary,
+        transaction_type='payment',
+        transaction_date=instance.payment_date,
+        description=desc,
+        defaults={
+            'reference_number': instance.reference or invoice_ref,
+            'debit': Decimal('0.00'),
+            'credit': instance.amount,
+            'fiscal_year': instance.payment_date.year,
+            'created_by': instance.created_by,
+        }
+    )
+    recalculate_running_balance(instance.beneficiary_id)
+
+
+@receiver(post_delete, sender=Payment)
+def balance_history_payment_delete(sender, instance, **kwargs):
+    BalanceHistory.objects.filter(
+        beneficiary=instance.beneficiary,
+        transaction_type='payment',
+        created_at=instance.created_at,
+        credit=instance.amount,
+    ).delete()
+    recalculate_running_balance(instance.beneficiary_id)
+
+
+@receiver(post_save, sender=OpeningBalance)
+def balance_history_opening_save(sender, instance, created, **kwargs):
+    desc = f"Opening Balance FY {instance.fiscal_year}"
+    from datetime import date
+    transaction_date = date(instance.fiscal_year, 1, 1)
+
+    BalanceHistory.objects.update_or_create(
+        beneficiary=instance.beneficiary,
+        transaction_type='opening_balance',
+        fiscal_year=instance.fiscal_year,
+        defaults={
+            'transaction_date': transaction_date,
+            'description': desc,
+            'reference_number': f"FY{instance.fiscal_year}",
+            'debit': instance.amount,
+            'credit': Decimal('0.00'),
+            'notes': instance.notes,
+            'created_by': instance.created_by,
+        }
+    )
+    recalculate_running_balance(instance.beneficiary_id)
+
+
+@receiver(post_delete, sender=OpeningBalance)
+def balance_history_opening_delete(sender, instance, **kwargs):
+    BalanceHistory.objects.filter(
+        beneficiary=instance.beneficiary,
+        transaction_type='opening_balance',
+        fiscal_year=instance.fiscal_year,
+    ).delete()
+    recalculate_running_balance(instance.beneficiary_id)

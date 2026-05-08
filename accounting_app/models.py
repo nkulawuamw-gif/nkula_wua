@@ -696,6 +696,35 @@ class OpeningBalance(models.Model):
         return f"{self.beneficiary.name} - FY {self.fiscal_year}: {self.amount}"
 
 
+class BalanceHistory(models.Model):
+    TRANSACTION_TYPES = [
+        ('opening_balance', 'Opening Balance'),
+        ('invoice', 'Invoice'),
+        ('payment', 'Payment'),
+        ('adjustment', 'Adjustment'),
+    ]
+
+    beneficiary = models.ForeignKey(Beneficiary, on_delete=models.CASCADE, related_name='balance_history')
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+    transaction_date = models.DateField()
+    description = models.CharField(max_length=255)
+    reference_number = models.CharField(max_length=100, blank=True, help_text="Invoice number, payment reference, etc.")
+    debit = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Amount added (invoice/bill)")
+    credit = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Amount deducted (payment)")
+    running_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Running balance after this transaction")
+    fiscal_year = models.IntegerField(default=0)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['transaction_date', 'created_at']
+        verbose_name_plural = "Balance histories"
+
+    def __str__(self):
+        return f"{self.beneficiary.name} - {self.get_transaction_type_display()} on {self.transaction_date}"
+
+
 class YearEndRollover(models.Model):
     fiscal_year = models.IntegerField(unique=True)
     rollover_date = models.DateField()
