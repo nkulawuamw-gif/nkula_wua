@@ -504,7 +504,7 @@ def search_suggestions(request):
 @login_required
 def beneficiary_create(request):
     if request.method == "POST":
-        form = BeneficiaryForm(request.POST)
+        form = BeneficiaryForm(request.POST, request.FILES)
         if form.is_valid():
             form.save()
             messages.success(request, "Beneficiary created successfully")
@@ -521,7 +521,7 @@ def beneficiary_edit(request, pk):
     old_status = Beneficiary.objects.get(pk=pk).is_active
     
     if request.method == "POST":
-        form = BeneficiaryForm(request.POST, instance=beneficiary)
+        form = BeneficiaryForm(request.POST, request.FILES, instance=beneficiary)
         if form.is_valid():
             # Determine new status - checkbox unchecked means not in POST
             new_status = 'is_active' in request.POST
@@ -4944,7 +4944,7 @@ def opening_balance_list(request):
     clients = Beneficiary.objects.filter(is_active=True).order_by('name')
     
     client_balances = []
-    for beneficiary in beneficiaries:
+    for beneficiary in clients:
         opening = beneficiary.opening_balances.filter(fiscal_year=fiscal_year).first()
         client_balances.append({
             'beneficiary': beneficiary,
@@ -5815,7 +5815,7 @@ def communication_create(request):
         comm = CommunicationLog.objects.create(
             communication_type=comm_type,
             recipient=recipient,
-            recipient_beneficiary=beneficiary,
+            recipient_beneficiary=client,
             message=message,
             status='sent',
             sent_by=request.user
@@ -5866,7 +5866,7 @@ def communication_send(request):
         comm = CommunicationLog.objects.create(
             communication_type=comm_type,
             recipient=recipient,
-            recipient_beneficiary=beneficiary,
+            recipient_beneficiary=client,
             message=message,
             status='sent',
             sent_by=request.user

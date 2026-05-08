@@ -36,7 +36,7 @@ class AccountForm(forms.ModelForm):
 class BeneficiaryForm(forms.ModelForm):
     class Meta:
         model = Beneficiary
-        fields = ["name", "beneficiary_type", "phone", "village", "scheme", "country", "tax_id", "household_count", "credit_limit", "payment_terms", "tap_installed_date", "is_active"]
+        fields = ["name", "beneficiary_type", "phone", "village", "scheme", "country", "tax_id", "profile_picture", "household_count", "credit_limit", "payment_terms", "tap_installed_date", "is_active"]
         exclude = ["total_bill", "total_paid", "total_outstanding"]
         widgets = {
             "name": forms.TextInput(attrs={"required": "required"}),

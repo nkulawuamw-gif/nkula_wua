@@ -229,6 +229,7 @@ class Beneficiary(models.Model):
     scheme = models.CharField(max_length=50, choices=SCHEME_CHOICES, blank=True)
     country = models.CharField(max_length=100, blank=True)
     tax_id = models.CharField(max_length=50, blank=True)
+    profile_picture = models.ImageField(upload_to='beneficiary_profiles/', blank=True, null=True)
     household_count = models.PositiveIntegerField(default=0, help_text="Number of households served")
     total_bill = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Total amount invoiced")
     total_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Total amount paid")
