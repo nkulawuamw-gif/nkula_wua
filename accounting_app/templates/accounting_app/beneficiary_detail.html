@@ -408,37 +408,76 @@
             </div>
             
             <div class="tab-pane fade" id="status" role="tabpanel">
-                <h5 class="mb-4 fw-bold">Status Change History</h5>
+                <h5 class="mb-4 fw-bold">Change History</h5>
                 <div class="table-responsive">
                     <table class="table table-hover border-0" style="border-radius: 12px; overflow: hidden;">
                         <thead class="bg-light">
                             <tr>
                                 <th class="border-0 px-3 py-3">Date & Time</th>
-                                <th class="border-0 px-3 py-3">Status</th>
+                                <th class="border-0 px-3 py-3">Type</th>
+                                <th class="border-0 px-3 py-3">Description</th>
                                 <th class="border-0 px-3 py-3">Changed By</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for log in status_logs %}
+                            {% for log in change_log %}
                             <tr class="align-middle">
-                                <td class="px-3 py-3">{{ log.changed_at|date:"Y-m-d H:i" }}</td>
+                                <td class="px-3 py-3 text-nowrap">{{ log.timestamp|date:"Y-m-d H:i" }}</td>
                                 <td class="px-3 py-3">
-                                    {% if log.status == 'activated' %}
-                                        <span class="badge bg-success rounded-pill px-3 py-2">
-                                            <i class="bi bi-check-circle me-1"></i>Activated
-                                        </span>
-                                    {% else %}
-                                        <span class="badge bg-secondary rounded-pill px-3 py-2">
-                                            <i class="bi bi-slash-circle me-1"></i>Deactivated
-                                        </span>
+                                    {% if log.category == 'status' %}
+                                        {% if log.type == 'activated' %}
+                                            <span class="badge bg-success rounded-pill px-3 py-2">
+                                                <i class="bi bi-check-circle me-1"></i>Activated
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary rounded-pill px-3 py-2">
+                                                <i class="bi bi-slash-circle me-1"></i>Deactivated
+                                            </span>
+                                        {% endif %}
+                                    {% elif log.category == 'field' %}
+                                        {% if log.type == 'created' %}
+                                            <span class="badge bg-info rounded-pill px-3 py-2">
+                                                <i class="bi bi-plus-circle me-1"></i>Created
+                                            </span>
+                                        {% elif log.type == 'updated' %}
+                                            <span class="badge bg-primary rounded-pill px-3 py-2">
+                                                <i class="bi bi-pencil me-1"></i>Updated
+                                            </span>
+                                        {% elif log.type == 'deleted' %}
+                                            <span class="badge bg-danger rounded-pill px-3 py-2">
+                                                <i class="bi bi-trash me-1"></i>Deleted
+                                            </span>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                                <td class="px-3 py-3">
+                                    {% if log.category == 'status' %}
+                                        <span class="fw-medium">Beneficiary {{ log.type }}</span>
+                                    {% elif log.category == 'field' %}
+                                        {% if log.type == 'created' %}
+                                            <span class="fw-medium">{{ log.description }}</span>
+                                        {% elif log.type == 'updated' %}
+                                            <span class="fw-medium">{{ log.field|title }}</span>
+                                            <br><small class="text-muted">
+                                                {% if log.old_value and log.new_value %}
+                                                    "{{ log.old_value }}" → "{{ log.new_value }}"
+                                                {% elif log.new_value %}
+                                                    Set to "{{ log.new_value }}"
+                                                {% elif log.old_value %}
+                                                    Cleared (was "{{ log.old_value }}")
+                                                {% endif %}
+                                            </small>
+                                        {% elif log.type == 'deleted' %}
+                                            <span class="fw-medium">{{ log.description }}</span>
+                                        {% endif %}
                                     {% endif %}
                                 </td>
                                 <td class="px-3 py-3">{{ log.user.username|default:"System" }}</td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="3" class="text-center text-muted py-5">
+                            <tr><td colspan="4" class="text-center text-muted py-5">
                                 <i class="bi bi-inbox fs-1 d-block mb-2 text-opacity-25"></i>
-                                <span class="text-muted">No status change history</span>
+                                <span class="text-muted">No change history recorded</span>
                             </td></tr>
                             {% endfor %}
                         </tbody>

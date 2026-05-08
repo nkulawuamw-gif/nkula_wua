@@ -529,6 +529,7 @@ def beneficiary_edit(request, pk):
             # Save the beneficiary
             beneficiary = form.save(commit=False)
             beneficiary.is_active = new_status
+            beneficiary.created_by = request.user
             beneficiary.save()
             
             # Always create a log entry for status changes
@@ -565,6 +566,7 @@ def beneficiary_toggle_status(request, pk):
     beneficiary = get_object_or_404(Beneficiary, pk=pk)
     # Toggle the status
     beneficiary.is_active = not beneficiary.is_active
+    beneficiary.created_by = request.user
     beneficiary.save()
     # Log the status change with user info
     BeneficiaryStatusLog.objects.create(
@@ -620,9 +622,10 @@ def bulk_beneficiary_create(request):
                         existing.country = country
                     existing.household_count = household_count
                     existing.credit_limit = credit_limit
+                    existing.created_by = request.user
                     existing.save()
                 else:
-                    Beneficiary.objects.create(
+                    b = Beneficiary(
                         name=name,
                         beneficiary_type=beneficiary_type,
                         scheme=scheme,
@@ -632,6 +635,8 @@ def bulk_beneficiary_create(request):
                         credit_limit=credit_limit,
                         is_active=True,
                     )
+                    b.created_by = request.user
+                    b.save()
                 created_count += 1
             except Exception as e:
                 error_list.append(f"{name}: {str(e)}")
@@ -731,10 +736,11 @@ def bulk_beneficiary_import(request):
                         existing_client.credit_limit = credit_limit
                         existing_client.payment_terms = payment_terms
                         existing_client.is_active = is_active
+                        existing_client.created_by = request.user
                         existing_client.save()
                         updated_count += 1
                     else:
-                        Beneficiary.objects.create(
+                        b = Beneficiary(
                             name=name,
                             beneficiary_type=beneficiary_type,
                             phone=phone,
@@ -747,6 +753,8 @@ def bulk_beneficiary_import(request):
                             payment_terms=payment_terms,
                             is_active=is_active,
                         )
+                        b.created_by = request.user
+                        b.save()
                         created_count += 1
                         
                 except Exception as e:
@@ -4412,10 +4420,11 @@ def import_client_data(row_data, user):
         existing_client.credit_limit = credit_limit
         existing_client.payment_terms = payment_terms
         existing_client.is_active = is_active
+        existing_client.created_by = user
         existing_client.save()
-        return {'status': 'updated', 'beneficiary': existing_beneficiary}
+        return {'status': 'updated', 'beneficiary': existing_client}
     else:
-        client = Beneficiary.objects.create(
+        client = Beneficiary(
             name=name,
             beneficiary_type=beneficiary_type,
             email=email,
@@ -4429,7 +4438,9 @@ def import_client_data(row_data, user):
             payment_terms=payment_terms,
             is_active=is_active
         )
-        return {'status': 'created', 'beneficiary': beneficiary}
+        client.created_by = user
+        client.save()
+        return {'status': 'created', 'beneficiary': client}
 
 
 def import_vendor_data(row_data):
@@ -5128,13 +5139,35 @@ def beneficiary_detail(request, pk):
     latest_activated = status_logs.filter(status='activated').order_by('-changed_at').first()
     latest_deactivated = status_logs.filter(status='deactivated').order_by('-changed_at').first()
     
+    change_log = []
+    for log in status_logs:
+        change_log.append({
+            'timestamp': log.changed_at,
+            'category': 'status',
+            'type': log.status,
+            'description': f"Beneficiary {log.status}",
+            'user': log.user,
+        })
+    for h in beneficiary.history.all():
+        change_log.append({
+            'timestamp': h.timestamp,
+            'category': 'field',
+            'type': h.action,
+            'description': h.description,
+            'user': h.user,
+            'field': h.field_name,
+            'old_value': h.old_value,
+            'new_value': h.new_value,
+        })
+    change_log.sort(key=lambda x: x['timestamp'], reverse=True)
+    
     return render(request, "accounting_app/beneficiary_detail.html", {
         "beneficiary": beneficiary,
         "invoices": invoices,
         "payments": payments,
         "opening_balances": opening_balances,
         "balance_history": balance_history,
-        "status_logs": status_logs,
+        "change_log": change_log,
         "latest_activated": latest_activated,
         "latest_deactivated": latest_deactivated,
         "current_opening": current_opening,

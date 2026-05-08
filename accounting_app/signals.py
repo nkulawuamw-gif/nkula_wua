@@ -86,8 +86,8 @@ def log_beneficiary_save(sender, instance, created, **kwargs):
         action = "updated"
         old_values = getattr(instance, '_old_values', None)
         if old_values:
-            track_fields = ['name', 'beneficiary_type', 'phone', 'village', 'scheme', 'country',
-                           'tax_id', 'household_count', 'credit_limit', 'payment_terms', 'is_active']
+            track_fields = ['name', 'beneficiary_type', 'phone', 'email', 'village', 'scheme', 'country',
+                           'tax_id', 'household_count', 'credit_limit', 'payment_terms', 'tap_installed_date', 'is_active']
             for field in track_fields:
                 old_val = old_values.get(field)
                 new_val = getattr(instance, field)
