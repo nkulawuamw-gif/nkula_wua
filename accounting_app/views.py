@@ -29,7 +29,7 @@ from .models import (
     JournalEntry, JournalEntryLine, Payment, Budget, ActivityLog, UserProfile,
     OpeningBalance, YearEndRollover, Scheme, Village, VillagePopulation,
     BoardOfTrustees, GeneralAssemblyMember, Employee, Report, BeneficiaryHistory,
-    BeneficiaryStatusLog, LoginSession, UserMessage
+    BeneficiaryStatusLog, LoginSession, UserMessage, CommunicationLog
 )
 from .forms import (
     AccountForm, BeneficiaryForm, VendorForm, InvoiceForm, InvoiceItemForm,

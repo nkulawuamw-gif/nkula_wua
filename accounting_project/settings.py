@@ -13,7 +13,7 @@ SECRET_KEY = os.getenv(
     'django-insecure-default-change-this'
 )
 
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = [
     '127.0.0.1',
