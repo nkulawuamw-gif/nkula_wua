@@ -13,7 +13,7 @@
             <div class="card bg-dark text-white text-center py-3 h-100">
                 <div class="card-body py-2">
                     <h5 class="mb-0 fw-bold">{{ activities|length }}</h5>
-                    <small class="text-muted">Audit Log</small>
+                    <small class="text-muted">Activities</small>
                 </div>
             </div>
         </div>
@@ -93,7 +93,7 @@
                                     <span class="badge bg-success">{{ a.action }}</span>
                                 {% elif a.action == 'updated' or a.action == 'Logout' %}
                                     <span class="badge bg-warning text-dark">{{ a.action }}</span>
-                                {% elif a.action == 'deleted' or a.action == 'Voided' %}
+                                {% elif a.action == 'deleted' %}
                                     <span class="badge bg-danger">{{ a.action }}</span>
                                 {% elif a.action == 'Refund' or a.action == 'refund' %}
                                     <span class="badge bg-info text-dark">{{ a.action }}</span>
@@ -101,10 +101,10 @@
                                     <span class="badge bg-secondary">{{ a.action }}</span>
                                 {% endif %}
                             </td>
-                            <td>{{ a.model_name|default:"-" }}</td>
+                            <td>{{ a.module|default:"-" }}</td>
                             <td>{% if a.object_id %}#{{ a.object_id }}{% else %}-{% endif %}</td>
                             <td><small>{{ a.description|truncatechars:80 }}</small></td>
-                            <td><small class="text-muted" title="{{ a.timestamp|date:'Y-m-d H:i:s' }}">{{ a.time_ago }}</small></td>
+                            <td><small class="text-muted">{{ a.time_ago }}</small></td>
                         </tr>
                         {% empty %}
                         <tr><td colspan="6" class="text-center text-muted py-3">No activities recorded</td></tr>

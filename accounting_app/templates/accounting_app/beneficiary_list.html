@@ -9,6 +9,8 @@
         <a href="{% url 'bulk_beneficiary_create' %}" class="btn btn-info"><i class="bi bi-people"></i> Bulk Create</a>
         <a href="{% url 'bulk_beneficiary_edit' %}" class="btn btn-secondary"><i class="bi bi-pencil-square"></i> Bulk Edit</a>
         <a href="{% url 'bulk_beneficiary_import' %}" class="btn btn-warning"><i class="bi bi-file-earmark-arrow-up"></i> Import Excel</a>
+        <a href="{% url 'export_beneficiaries_full' %}" class="btn btn-outline-primary"><i class="bi bi-download"></i> Export Full</a>
+        <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#importFullModal"><i class="bi bi-upload"></i> Import Full</button>
         <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#whatsappModal">
             <i class="bi bi-whatsapp"></i> Send WhatsApp
         </button>
@@ -336,4 +338,37 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
+<div class="modal fade" id="importFullModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-upload"></i> Import Beneficiaries (Full)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'import_beneficiaries_preview' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p>Upload a JSON file exported via <strong>Export Full</strong>. This will import beneficiaries along with all their invoices, payments, and history records.</p>
+                    <div class="mb-3">
+                        <label class="form-label">Import Mode</label>
+                        <select name="mode" class="form-select">
+                            <option value="add_new">Add new only (skip existing)</option>
+                            <option value="merge">Merge (update existing)</option>
+                            <option value="replace">Replace all (delete then import)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">JSON File</label>
+                        <input type="file" name="file" class="form-control" accept=".json" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success"><i class="bi bi-upload"></i> Import</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}

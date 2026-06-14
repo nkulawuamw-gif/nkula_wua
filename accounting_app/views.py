@@ -26,11 +26,11 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from .models import (
     Account, Beneficiary, Vendor, Invoice, InvoiceItem, Expense, ExpenseItem,
-    JournalEntry, JournalEntryLine, Payment, Budget, BudgetLine, ActivityLog,
+    JournalEntry, JournalEntryLine, Payment, Budget, BudgetLine,
     UserProfile, OpeningBalance, YearEndRollover, Scheme, Village, VillagePopulation,
     BoardOfTrustees, GeneralAssemblyMember, Employee, EmployeeSalary, Report,
     BeneficiaryHistory, BeneficiaryStatusLog, LoginSession, UserMessage,
-    CommunicationLog, UserCall, DataMigrationLog, SystemVersion, SystemUpdateLog,
+    CommunicationLog, UserCall, SystemVersion, SystemUpdateLog,
     BalanceHistory, TaxRate, DeletedRecord
 )
 from .forms import (
@@ -133,14 +133,6 @@ def login_view(request):
                 device_info=device_info
             )
 
-            ActivityLog.objects.create(
-                user=user,
-                action="Login",
-                model_name="Auth",
-                description=f"User {user.username} logged in",
-                ip_address=ip,
-            )
-            
             messages.success(request, f"Welcome back, {user.username}!")
             next_url = request.GET.get('next') or request.POST.get('next')
             if next_url:
@@ -164,14 +156,6 @@ def logout_view(request):
         LoginSession.objects.filter(session_key=session_key, is_active=True).update(
             logout_time=timezone.now(),
             is_active=False
-        )
-    if user:
-        ActivityLog.objects.create(
-            user=user,
-            action="Logout",
-            model_name="Auth",
-            description=f"User {username} logged out",
-            ip_address=request.META.get('REMOTE_ADDR'),
         )
     logout(request)
     messages.success(request, "You have been logged out")
@@ -823,6 +807,520 @@ def download_beneficiary_template(request):
     return response
 
 
+def _serialize_instance(instance):
+    model_class = instance._meta.model
+    result = {}
+    for field in model_class._meta.fields:
+        if field.primary_key:
+            continue
+        name = field.attname
+        val = getattr(instance, name)
+        if val is None:
+            result[name] = None
+        elif isinstance(val, Decimal):
+            result[name] = str(val)
+        elif isinstance(val, date):
+            result[name] = val.isoformat()
+        else:
+            result[name] = val
+    return result
+
+
+@login_required
+def export_beneficiaries_full(request):
+    now = timezone.now()
+    data = {
+        "exported_at": now.isoformat(),
+        "exported_by": request.user.username,
+        "version": "2.0",
+        "beneficiaries": [],
+    }
+    for ben in Beneficiary.objects.all().order_by("id"):
+        ben_entry = {
+            "pk": ben.pk,
+            "fields": _serialize_instance(ben),
+            "invoices": [],
+            "payments": [],
+            "opening_balances": [],
+            "balance_history": [],
+            "history": [],
+            "status_logs": [],
+        }
+        for inv in ben.invoices.all().order_by("id"):
+            inv_entry = {
+                "pk": inv.pk,
+                "fields": _serialize_instance(inv),
+                "items": [],
+            }
+            for item in inv.items.all().order_by("id"):
+                inv_entry["items"].append({
+                    "pk": item.pk,
+                    "fields": _serialize_instance(item),
+                })
+            ben_entry["invoices"].append(inv_entry)
+        for pay in ben.payments.all().order_by("id"):
+            ben_entry["payments"].append({
+                "pk": pay.pk,
+                "fields": _serialize_instance(pay),
+            })
+        for ob in ben.opening_balances.all().order_by("id"):
+            ben_entry["opening_balances"].append({
+                "pk": ob.pk,
+                "fields": _serialize_instance(ob),
+            })
+        for bh in ben.balance_history.all().order_by("id"):
+            ben_entry["balance_history"].append({
+                "pk": bh.pk,
+                "fields": _serialize_instance(bh),
+            })
+        for h in ben.history.all().order_by("id"):
+            ben_entry["history"].append({
+                "pk": h.pk,
+                "fields": _serialize_instance(h),
+            })
+        for sl in ben.status_logs.all().order_by("id"):
+            ben_entry["status_logs"].append({
+                "pk": sl.pk,
+                "fields": _serialize_instance(sl),
+            })
+        data["beneficiaries"].append(ben_entry)
+
+    response = HttpResponse(
+        json.dumps(data, default=str, indent=2),
+        content_type="application/json",
+    )
+    response["Content-Disposition"] = (
+        f'attachment; filename="beneficiaries_full_{now.strftime("%Y%m%d_%H%M%S")}.json"'
+    )
+    return response
+
+
+@login_required
+def import_beneficiaries_preview(request):
+    if request.method != "POST" or not request.FILES.get("file"):
+        messages.error(request, "Please upload a JSON file.")
+        return redirect("beneficiary_list")
+
+    uploaded = request.FILES["file"]
+    if not uploaded.name.endswith(".json"):
+        messages.error(request, "Please upload a valid JSON file (.json).")
+        return redirect("beneficiary_list")
+
+    try:
+        content = json.loads(uploaded.read().decode("utf-8"))
+    except Exception as e:
+        messages.error(request, f"Invalid JSON file: {e}")
+        return redirect("beneficiary_list")
+
+    if not isinstance(content, dict) or "beneficiaries" not in content:
+        messages.error(request, "Invalid format: missing 'beneficiaries' key.")
+        return redirect("beneficiary_list")
+
+    mode = request.POST.get("mode", "add_new")
+    if mode not in ("add_new", "merge", "replace"):
+        mode = "add_new"
+
+    new_entries = []
+    dup_entries = []
+
+    for entry in content.get("beneficiaries", []):
+        fields = entry.get("fields", {})
+        name = fields.get("name", "").strip()
+        if not name:
+            continue
+        existing = Beneficiary.objects.filter(name=name).first()
+        if existing:
+            dup_entries.append({
+                "pk": entry["pk"],
+                "name": name,
+                "existing": {
+                    "phone": existing.phone or "-",
+                    "village": existing.village or "-",
+                    "scheme": existing.scheme or "-",
+                    "is_active": existing.is_active,
+                    "total_bill": str(existing.total_bill),
+                    "total_paid": str(existing.total_paid),
+                    "invoice_count": existing.invoices.count(),
+                    "payment_count": existing.payments.count(),
+                },
+                "incoming": {
+                    "phone": fields.get("phone", "") or "-",
+                    "village": fields.get("village", "") or "-",
+                    "scheme": fields.get("scheme", "") or "-",
+                    "is_active": fields.get("is_active", True),
+                    "total_bill": fields.get("total_bill", "0"),
+                    "total_paid": fields.get("total_paid", "0"),
+                    "invoice_count": len(entry.get("invoices", [])),
+                    "payment_count": len(entry.get("payments", [])),
+                },
+            })
+        else:
+            new_entries.append({
+                "pk": entry["pk"],
+                "name": name,
+                "invoice_count": len(entry.get("invoices", [])),
+                "payment_count": len(entry.get("payments", [])),
+            })
+
+    request.session["import_preview_data"] = {
+        "mode": mode,
+        "file_content": content,
+        "filename": uploaded.name,
+    }
+
+    if not dup_entries:
+        return import_beneficiaries_full(request)
+
+    total = len(content["beneficiaries"])
+    dup_count = len(dup_entries)
+    new_count = len(new_entries)
+
+    return render(request, "accounting_app/import_preview.html", {
+        "dup_entries": dup_entries,
+        "new_entries": new_entries,
+        "total_count": total,
+        "dup_count": dup_count,
+        "new_count": new_count,
+        "mode": mode,
+        "default_action": "skip",
+    })
+
+
+@login_required
+def import_beneficiaries_full(request):
+    from datetime import date as _date
+    _DATE_FIELDS = {
+        "Beneficiary": ["tap_installed_date"],
+        "Invoice": ["issue_date", "due_date"],
+        "Payment": ["payment_date"],
+        "OpeningBalance": [],
+        "BalanceHistory": ["transaction_date"],
+        "BeneficiaryHistory": [],
+        "BeneficiaryStatusLog": [],
+    }
+
+    def _convert_dates(model_name, fields):
+        for fname in _DATE_FIELDS.get(model_name, []):
+            val = fields.get(fname)
+            if isinstance(val, str):
+                try:
+                    fields[fname] = _date.fromisoformat(val[:10])
+                except (ValueError, TypeError):
+                    pass
+        return fields
+
+    # Get content and actions from session (preview flow) or direct upload
+    preview_data = request.session.pop("import_preview_data", None)
+    if preview_data:
+        content = preview_data["file_content"]
+        mode = preview_data["mode"]
+        actions = {}
+        for key, val in request.POST.items():
+            if key.startswith("action_"):
+                pk = int(key.replace("action_", ""))
+                actions[pk] = val
+    else:
+        if request.method != "POST" or not request.FILES.get("file"):
+            messages.error(request, "Please upload a JSON file.")
+            return redirect("beneficiary_list")
+
+        uploaded = request.FILES["file"]
+        if not uploaded.name.endswith(".json"):
+            messages.error(request, "Please upload a valid JSON file (.json).")
+            return redirect("beneficiary_list")
+
+        try:
+            content = json.loads(uploaded.read().decode("utf-8"))
+        except Exception as e:
+            messages.error(request, f"Invalid JSON file: {e}")
+            return redirect("beneficiary_list")
+
+        if not isinstance(content, dict) or "beneficiaries" not in content:
+            messages.error(request, "Invalid format: missing 'beneficiaries' key.")
+            return redirect("beneficiary_list")
+
+        mode = request.POST.get("mode", "add_new")
+        if mode not in ("add_new", "merge", "replace"):
+            mode = "add_new"
+        actions = {}
+
+    report = {
+        "beneficiaries_created": 0,
+        "beneficiaries_updated": 0,
+        "beneficiaries_skipped": 0,
+        "beneficiaries_kept_both": 0,
+        "invoices_created": 0,
+        "invoice_items_created": 0,
+        "payments_created": 0,
+        "opening_balances_created": 0,
+        "balance_history_created": 0,
+        "history_created": 0,
+        "status_logs_created": 0,
+        "errors": [],
+    }
+
+    try:
+        with transaction.atomic():
+            if mode == "replace":
+                InvoiceItem.objects.all().delete()
+                Payment.objects.all().delete()
+                Invoice.objects.all().delete()
+                BeneficiaryHistory.objects.all().delete()
+                BeneficiaryStatusLog.objects.all().delete()
+                OpeningBalance.objects.all().delete()
+                BalanceHistory.objects.all().delete()
+                Beneficiary.objects.all().delete()
+
+            # Phase 1: create/update/keep beneficiaries
+            ben_pk_map = {}
+            for entry in content["beneficiaries"]:
+                old_pk = entry["pk"]
+                fields = entry["fields"]
+                name = fields.get("name", "").strip()
+                if not name:
+                    report["errors"].append(f"Skipped beneficiary PK {old_pk}: no name")
+                    report["beneficiaries_skipped"] += 1
+                    continue
+
+                existing = Beneficiary.objects.filter(name=name).first()
+                if actions:
+                    action = actions.get(old_pk, "skip")
+                elif existing:
+                    action = "skip" if mode == "add_new" else ("keep_one" if mode == "merge" else "skip")
+                else:
+                    action = "create"
+
+                if existing and action == "skip":
+                    report["beneficiaries_skipped"] += 1
+                    ben_pk_map[old_pk] = existing
+                    continue
+
+                if existing and action == "keep_one":
+                    for key, val in fields.items():
+                        if key not in ("id", "created_at", "updated_at",
+                                       "total_bill", "total_paid", "total_outstanding"):
+                            setattr(existing, key, val)
+                    existing.save()
+                    report["beneficiaries_updated"] += 1
+                    ben_pk_map[old_pk] = existing
+                    continue
+
+                if existing and action == "keep_both":
+                    create_kwargs = {
+                        k: v for k, v in fields.items()
+                        if k not in ("id", "created_at", "updated_at",
+                                     "total_bill", "total_paid", "total_outstanding")
+                    }
+                    _convert_dates("Beneficiary", create_kwargs)
+                    created = Beneficiary.objects.create(**create_kwargs)
+                    report["beneficiaries_kept_both"] += 1
+                    ben_pk_map[old_pk] = created
+                    continue
+
+                if not existing:
+                    create_kwargs = {
+                        k: v for k, v in fields.items()
+                        if k not in ("id", "created_at", "updated_at",
+                                     "total_bill", "total_paid", "total_outstanding")
+                    }
+                    _convert_dates("Beneficiary", create_kwargs)
+                    created = Beneficiary.objects.create(**create_kwargs)
+                    report["beneficiaries_created"] += 1
+                    ben_pk_map[old_pk] = created
+
+            # Phase 2: create invoices
+            invoice_pk_map = {}
+            for entry in content["beneficiaries"]:
+                new_ben = ben_pk_map.get(entry["pk"])
+                if not new_ben:
+                    continue
+                old_pk = entry["pk"]
+                ben_action = actions.get(old_pk, mode)
+                if ben_action == "skip":
+                    continue
+                eff_mode = "merge" if ben_action == "keep_one" else mode
+
+                for inv_entry in entry.get("invoices", []):
+                    old_inv_pk = inv_entry["pk"]
+                    inv_fields = dict(inv_entry["fields"])
+                    inv_fields["beneficiary_id"] = new_ben.pk
+                    if inv_fields.get("created_by_id"):
+                        inv_fields["created_by_id"] = None
+                    inv_fields.pop("beneficiary", None)
+
+                    if eff_mode == "replace":
+                        inv_fields["invoice_number"] = f"IMP-{old_inv_pk}-{timezone.now().strftime('%y%m%d%H%M%S')}"
+
+                    inv_number = inv_fields.get("invoice_number", "")
+                    existing_inv = Invoice.objects.filter(invoice_number=inv_number).first() if inv_number else None
+
+                    if existing_inv and eff_mode == "add_new":
+                        invoice_pk_map[old_inv_pk] = existing_inv
+                        continue
+                    elif existing_inv and eff_mode == "merge":
+                        for k, v in inv_fields.items():
+                            if k not in ("id", "created_at", "updated_at", "invoice_number"):
+                                setattr(existing_inv, k, v)
+                        existing_inv.beneficiary_id = new_ben.pk
+                        existing_inv.save()
+                        invoice_pk_map[old_inv_pk] = existing_inv
+                        continue
+
+                    for skip_key in ("id", "created_at", "updated_at"):
+                        inv_fields.pop(skip_key, None)
+                    _convert_dates("Invoice", inv_fields)
+                    new_inv = Invoice.objects.create(**inv_fields)
+                    report["invoices_created"] += 1
+                    invoice_pk_map[old_inv_pk] = new_inv
+
+                    for item_entry in inv_entry.get("items", []):
+                        item_fields = dict(item_entry["fields"])
+                        item_fields["invoice_id"] = new_inv.pk
+                        item_fields.pop("invoice", None)
+                        item_fields.pop("id", None)
+                        InvoiceItem.objects.create(**item_fields)
+                        report["invoice_items_created"] += 1
+
+            # Phase 4: payments
+            for entry in content["beneficiaries"]:
+                old_pk = entry["pk"]
+                new_ben = ben_pk_map.get(old_pk)
+                if not new_ben or actions.get(old_pk) == "skip":
+                    continue
+                for pay_entry in entry.get("payments", []):
+                    pay_fields = dict(pay_entry["fields"])
+                    pay_fields["beneficiary_id"] = new_ben.pk
+
+                    old_inv_id = pay_fields.get("invoice_id")
+                    if old_inv_id and old_inv_id in invoice_pk_map and invoice_pk_map[old_inv_id] is not None:
+                        pay_fields["invoice_id"] = invoice_pk_map[old_inv_id].pk
+                    else:
+                        pay_fields.pop("invoice_id", None)
+
+                    if pay_fields.get("created_by_id"):
+                        pay_fields["created_by_id"] = None
+                    if pay_fields.get("account_id"):
+                        pay_fields["account_id"] = None
+
+                    for skip in ("id", "created_at", "beneficiary", "invoice", "account", "created_by"):
+                        pay_fields.pop(skip, None)
+
+                    _convert_dates("Payment", pay_fields)
+                    Payment.objects.create(**pay_fields)
+                    report["payments_created"] += 1
+
+            # Phase 5: opening balances
+            for entry in content["beneficiaries"]:
+                old_pk = entry["pk"]
+                new_ben = ben_pk_map.get(old_pk)
+                if not new_ben or actions.get(old_pk) == "skip":
+                    continue
+                for ob_entry in entry.get("opening_balances", []):
+                    ob_fields = dict(ob_entry["fields"])
+                    ob_fields["beneficiary_id"] = new_ben.pk
+                    if ob_fields.get("created_by_id"):
+                        ob_fields["created_by_id"] = None
+                    for skip in ("id", "created_at", "updated_at", "beneficiary", "created_by"):
+                        ob_fields.pop(skip, None)
+
+                    existing_ob = OpeningBalance.objects.filter(
+                        beneficiary_id=new_ben.pk,
+                        fiscal_year=ob_fields.get("fiscal_year"),
+                    ).first()
+                    eff_mode = "merge" if actions.get(old_pk) == "keep_one" else mode
+                    if existing_ob and eff_mode in ("add_new", "merge"):
+                        if eff_mode == "merge":
+                            for k, v in ob_fields.items():
+                                if k not in ("beneficiary_id", "fiscal_year"):
+                                    setattr(existing_ob, k, v)
+                            existing_ob.save()
+                        continue
+                    OpeningBalance.objects.create(**ob_fields)
+                    report["opening_balances_created"] += 1
+
+            # Phase 6: balance history
+            for entry in content["beneficiaries"]:
+                old_pk = entry["pk"]
+                new_ben = ben_pk_map.get(old_pk)
+                if not new_ben or actions.get(old_pk) == "skip":
+                    continue
+                for bh_entry in entry.get("balance_history", []):
+                    bh_fields = dict(bh_entry["fields"])
+                    bh_fields["beneficiary_id"] = new_ben.pk
+                    if bh_fields.get("created_by_id"):
+                        bh_fields["created_by_id"] = None
+                    for skip in ("id", "created_at", "beneficiary", "created_by"):
+                        bh_fields.pop(skip, None)
+                    _convert_dates("BalanceHistory", bh_fields)
+                    BalanceHistory.objects.create(**bh_fields)
+                    report["balance_history_created"] += 1
+
+            # Phase 7: beneficiary history
+            for entry in content["beneficiaries"]:
+                old_pk = entry["pk"]
+                new_ben = ben_pk_map.get(old_pk)
+                if not new_ben or actions.get(old_pk) == "skip":
+                    continue
+                for h_entry in entry.get("history", []):
+                    h_fields = dict(h_entry["fields"])
+                    h_fields["beneficiary_id"] = new_ben.pk
+                    if h_fields.get("user_id"):
+                        h_fields["user_id"] = None
+                    for skip in ("id", "timestamp", "beneficiary", "user"):
+                        h_fields.pop(skip, None)
+                    BeneficiaryHistory.objects.create(**h_fields)
+                    report["history_created"] += 1
+
+            # Phase 8: status logs
+            for entry in content["beneficiaries"]:
+                old_pk = entry["pk"]
+                new_ben = ben_pk_map.get(old_pk)
+                if not new_ben or actions.get(old_pk) == "skip":
+                    continue
+                for sl_entry in entry.get("status_logs", []):
+                    sl_fields = dict(sl_entry["fields"])
+                    sl_fields["beneficiary_id"] = new_ben.pk
+                    if sl_fields.get("user_id"):
+                        sl_fields["user_id"] = None
+                    for skip in ("id", "changed_at", "beneficiary", "user"):
+                        sl_fields.pop(skip, None)
+                    BeneficiaryStatusLog.objects.create(**sl_fields)
+                    report["status_logs_created"] += 1
+
+            # Phase 9: recalculate totals
+            for ben in ben_pk_map.values():
+                ben.recalculate_totals()
+
+    except Exception as e:
+        messages.error(request, f"Import failed: {e}")
+        return redirect("beneficiary_list")
+
+    total_created = sum([
+        report["beneficiaries_created"], report["invoices_created"],
+        report["invoice_items_created"], report["payments_created"],
+        report["opening_balances_created"], report["balance_history_created"],
+        report["history_created"], report["status_logs_created"],
+    ])
+    msg = (
+        f"Import complete. "
+        f"Beneficiaries: {report['beneficiaries_created']} created, "
+        f"{report['beneficiaries_updated']} updated, "
+        f"{report['beneficiaries_kept_both']} kept both, "
+        f"{report['beneficiaries_skipped']} skipped. "
+        f"Invoices: {report['invoices_created']}, "
+        f"Items: {report['invoice_items_created']}, "
+        f"Payments: {report['payments_created']}, "
+        f"Opening balances: {report['opening_balances_created']}, "
+        f"Balance history: {report['balance_history_created']}, "
+        f"Total records created: {total_created}."
+    )
+    if report["errors"]:
+        for err in report["errors"][:5]:
+            msg += f" | {err}"
+    messages.success(request, msg)
+    return redirect("beneficiary_list")
+
+
 @login_required
 def bulk_beneficiary_delete(request):
     if request.method == "POST":
@@ -1247,15 +1745,6 @@ def invoice_create(request):
                 created_by=request.user
             )
 
-            ActivityLog.objects.create(
-                user=request.user,
-                action="Sales",
-                model_name="Invoice",
-                object_id=invoice.pk,
-                description=f"Created invoice {invoice_number} for {beneficiary.name} - {total_amount}",
-                ip_address=request.META.get('REMOTE_ADDR'),
-            )
-            
             beneficiary.recalculate_totals()
             
             messages.success(request, f"Invoice {invoice_number} created successfully")
@@ -1554,14 +2043,6 @@ def invoice_delete(request, pk):
     if request.method == "POST":
         invoice.status = "cancelled"
         invoice.save()
-        ActivityLog.objects.create(
-            user=request.user,
-            action="Voided",
-            model_name="Invoice",
-            object_id=invoice.pk,
-            description=f"Voided invoice {invoice.invoice_number} for {invoice.beneficiary.name}",
-            ip_address=request.META.get('REMOTE_ADDR'),
-        )
         save_deleted_record(invoice, request.user)
         invoice.delete()
         messages.success(request, "Invoice deleted")
@@ -3020,16 +3501,6 @@ def payment_create(request):
 
             beneficiary.recalculate_totals()
 
-            action_label = "Refund" if amount < 0 else "Payment"
-            ActivityLog.objects.create(
-                user=request.user,
-                action=action_label,
-                model_name="Payment",
-                object_id=getattr(payment, 'pk', None),
-                description=f"{action_label} of {amount} for {beneficiary.name}",
-                ip_address=request.META.get('REMOTE_ADDR'),
-            )
-
             messages.success(request, f"Payment of {amount} recorded successfully for {beneficiary.name}")
             return redirect("invoice_list")
     else:
@@ -3263,14 +3734,6 @@ def journal_create(request):
             entry = form.save(commit=False)
             entry.created_by = request.user
             entry.save()
-            ActivityLog.objects.create(
-                user=request.user,
-                action="Adjustment",
-                model_name="JournalEntry",
-                object_id=entry.pk,
-                description=f"Created journal entry {entry.entry_number}: {entry.description}",
-                ip_address=request.META.get('REMOTE_ADDR'),
-            )
             messages.success(request, "Journal entry created")
             return redirect("journal_edit", pk=entry.pk)
     else:
@@ -4399,17 +4862,65 @@ def data_recovery(request):
                 total_updated = sum(s["updated"] for s in summary.values())
                 messages.success(request, f"Import completed. {total_created} records created, {total_updated} updated.")
 
-                ActivityLog.objects.create(
-                    user=request.user,
-                    action="Import",
-                    model_name="DataRecovery",
-                    description=f"Database {dict(DataMigrationLog.IMPORT_MODES).get(mode, mode)} import completed: {total_created} created, {total_updated} updated",
-                    ip_address=request.META.get('REMOTE_ADDR'),
-                )
-
             except Exception as e:
                 messages.error(request, f"Import failed: {e}")
 
+            return redirect("data_recovery")
+
+        elif action == "export_beneficiaries":
+            try:
+                data = _serialize_model(Beneficiary)
+                response = HttpResponse(
+                    json.dumps(data, default=str, indent=2),
+                    content_type="application/json"
+                )
+                response["Content-Disposition"] = f'attachment; filename="beneficiaries_{timezone.now().strftime("%Y%m%d_%H%M%S")}.json"'
+                return response
+            except Exception as e:
+                messages.error(request, f"Export failed: {e}")
+
+        elif action == "import_beneficiaries":
+            uploaded_file = request.FILES.get("file")
+            if not uploaded_file or not uploaded_file.name.endswith(".json"):
+                messages.error(request, "Please upload a valid JSON file.")
+                return redirect("data_recovery")
+
+            try:
+                content = json.loads(uploaded_file.read().decode("utf-8"))
+            except Exception as e:
+                messages.error(request, f"Invalid JSON file: {e}")
+                return redirect("data_recovery")
+
+            created = 0
+            updated = 0
+            skipped = 0
+
+            for record in content:
+                existing = _identify_record(Beneficiary, record)
+                if existing:
+                    changed = False
+                    for field in Beneficiary._meta.fields:
+                        if field.name in record and field.name != Beneficiary._meta.pk.name:
+                            setattr(existing, field.name, record[field.name])
+                            changed = True
+                    if changed:
+                        existing.save()
+                        updated += 1
+                    else:
+                        skipped += 1
+                else:
+                    record.pop(Beneficiary._meta.pk.name, None)
+                    try:
+                        obj = Beneficiary(**_prepare_record_for_model(Beneficiary, record))
+                        obj.save()
+                        created += 1
+                    except Exception:
+                        skipped += 1
+
+            messages.success(
+                request,
+                f"Beneficiary import complete. {created} created, {updated} updated, {skipped} skipped."
+            )
             return redirect("data_recovery")
 
         record_id = request.POST.get("record_id")
@@ -4420,7 +4931,7 @@ def data_recovery(request):
                 if obj:
                     messages.success(request, f"Successfully recovered {record.model_name} #{record.object_id}")
                 else:
-                    messages.error(request, f"Failed to recover {record.model_name} #{record.object_id}. The data may be corrupted or the model no longer exists.")
+                    messages.error(request, f"Failed to recover {record.model_name} #{record.object_id}. The data may be corrupted, a related record (e.g. beneficiary) may have been deleted, or the ID already exists. Check the server logs for details.")
             else:
                 messages.warning(request, "This record has already been recovered.")
         elif record_id and action == "permanent_delete":
@@ -6228,12 +6739,6 @@ def delete_employee_salary(request, pk, salary_pk):
 
 
 @login_required
-def activity_log(request):
-    activities = ActivityLog.objects.all().order_by('-timestamp')[:100]
-    return render(request, "accounting_app/activity_log.html", {"activities": activities})
-
-
-@login_required
 def audit_log(request):
     if not _is_super_admin(request.user):
         messages.error(request, "Access denied.")
@@ -6241,39 +6746,83 @@ def audit_log(request):
 
     from django.utils.timesince import timesince
 
-    all_activities = ActivityLog.objects.all().order_by('-timestamp')[:200]
-    active_sessions = LoginSession.objects.select_related('user').filter(is_active=True).order_by('-login_time')
-    all_sessions = LoginSession.objects.select_related('user').all().order_by('-login_time')[:50]
+    activities = []
+    now = timezone.now()
+
+    for bh in BeneficiaryHistory.objects.select_related('beneficiary', 'user').all().order_by('-timestamp')[:100]:
+        activities.append({
+            'user': bh.user,
+            'action': bh.action,
+            'module': 'Beneficiary',
+            'object_id': bh.beneficiary_id,
+            'description': bh.description,
+            'timestamp': bh.timestamp,
+            'time_ago': timesince(bh.timestamp) + " ago" if bh.timestamp else "",
+        })
+
+    for dr in DeletedRecord.objects.select_related('deleted_by').all().order_by('-deleted_at')[:100]:
+        activities.append({
+            'user': dr.deleted_by,
+            'action': 'deleted',
+            'module': dr.model_name,
+            'object_id': dr.object_id,
+            'description': f"{dr.model_name} #{dr.object_id} deleted",
+            'timestamp': dr.deleted_at,
+            'time_ago': timesince(dr.deleted_at) + " ago" if dr.deleted_at else "",
+        })
+
+    for ls in LoginSession.objects.select_related('user').all().order_by('-login_time')[:100]:
+        if ls.login_time:
+            activities.append({
+                'user': ls.user,
+                'action': 'Login',
+                'module': 'Auth',
+                'object_id': None,
+                'description': f"User {ls.user.username} logged in",
+                'timestamp': ls.login_time,
+                'time_ago': timesince(ls.login_time) + " ago" if ls.login_time else "",
+            })
+        if ls.logout_time:
+            activities.append({
+                'user': ls.user,
+                'action': 'Logout',
+                'module': 'Auth',
+                'object_id': None,
+                'description': f"User {ls.user.username} logged out",
+                'timestamp': ls.logout_time,
+                'time_ago': timesince(ls.logout_time) + " ago" if ls.logout_time else "",
+            })
+
+    activities.sort(key=lambda a: a['timestamp'] or now, reverse=True)
+    activities = activities[:200]
 
     module_filter = request.GET.get('module', '')
     if module_filter:
-        all_activities = all_activities.filter(model_name__icontains=module_filter)
+        activities = [a for a in activities if module_filter.lower() in a['module'].lower()]
+
+    modules = sorted(set(a['module'] for a in activities if a['module']))
+
+    active_sessions = LoginSession.objects.select_related('user').filter(is_active=True).order_by('-login_time')
+    all_sessions = LoginSession.objects.select_related('user').all().order_by('-login_time')[:50]
 
     sales_count = Invoice.objects.exclude(status='cancelled').count()
     refund_count = Payment.objects.filter(amount__lt=0).count()
     voided_count = Invoice.objects.filter(status='cancelled').count()
     adjustment_count = JournalEntry.objects.count()
-    transfer_count = Payment.objects.filter(account__isnull=False).count()
     login_count = LoginSession.objects.count()
-
-    for a in all_activities:
-        a.time_ago = timesince(a.timestamp) + " ago" if a.timestamp else ""
 
     for s in all_sessions:
         s.login_ago = timesince(s.login_time) + " ago" if s.login_time else ""
         s.logout_ago = timesince(s.logout_time) + " ago" if s.logout_time else ""
 
-    modules = ActivityLog.objects.values_list('model_name', flat=True).distinct().order_by('model_name')
-
     return render(request, "accounting_app/audit_log.html", {
-        "activities": all_activities,
+        "activities": activities,
         "sessions": all_sessions,
         "active_sessions": active_sessions,
         "sales_count": sales_count,
         "refund_count": refund_count,
         "voided_count": voided_count,
         "adjustment_count": adjustment_count,
-        "transfer_count": transfer_count,
         "login_count": login_count,
         "modules": modules,
         "current_module": module_filter,
@@ -6678,7 +7227,6 @@ EXPORT_MODELS = {
     "user_profiles": UserProfile,
     "communication_logs": CommunicationLog,
     "user_messages": UserMessage,
-    "activity_logs": ActivityLog,
     "reports": Report,
     "opening_balances": OpeningBalance,
     "balance_history": BalanceHistory,
@@ -6687,50 +7235,6 @@ EXPORT_MODELS = {
     "landing_page_settings": LandingPageSettings,
     "tax_rates": TaxRate,
 }
-
-EXPORT_GROUPS = [
-    {
-        "name": "Products",
-        "keys": ["accounts", "services"],
-        "icon": "bi-box-seam",
-    },
-    {
-        "name": "Categories",
-        "keys": [],
-        "icon": "bi-tags",
-    },
-    {
-        "name": "Users & Roles",
-        "keys": ["users", "user_profiles"],
-        "icon": "bi-people",
-    },
-    {
-        "name": "Sales",
-        "keys": ["invoices", "invoice_items", "payments"],
-        "icon": "bi-cart",
-    },
-    {
-        "name": "Stock Transactions",
-        "keys": [],
-        "icon": "bi-arrow-left-right",
-    },
-    {
-        "name": "Chat Messages",
-        "keys": ["user_messages", "communication_logs"],
-        "icon": "bi-chat-dots",
-    },
-    {
-        "name": "Notifications",
-        "keys": [],
-        "icon": "bi-bell",
-    },
-    {
-        "name": "Settings & Shops",
-        "keys": ["landing_page_settings", "tax_rates", "gallery_images", "schemes", "services"],
-        "icon": "bi-gear",
-    },
-]
-
 
 def _serialize_model(model_class):
     data = []
@@ -6786,253 +7290,6 @@ def _identify_record(model_class, record):
             except Exception:
                 pass
     return None
-
-
-@login_required
-def data_migration(request):
-    if not _is_super_admin(request.user):
-        messages.error(request, "Access denied. Super Administrator access required.")
-        return redirect("dashboard")
-
-    export_history = DataMigrationLog.objects.filter(direction="export")[:20]
-    import_history = DataMigrationLog.objects.filter(direction="import")[:20]
-
-    selected_groups = request.POST.getlist("groups")
-
-    if request.method == "POST":
-        action = request.POST.get("action")
-
-        if action == "export":
-            log = DataMigrationLog.objects.create(
-                direction="export",
-                status="in_progress",
-                performed_by=request.user,
-            )
-            try:
-                import io, zipfile
-
-                selected_model_keys = set()
-                for group in EXPORT_GROUPS:
-                    if group["name"] in selected_groups or not selected_groups:
-                        selected_model_keys.update(group["keys"])
-
-                models_to_export = {k: v for k, v in EXPORT_MODELS.items() if k in selected_model_keys}
-                if not models_to_export:
-                    models_to_export = dict(EXPORT_MODELS)
-
-                buffer = io.BytesIO()
-                with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-                    for name, model_class in models_to_export.items():
-                        data = _serialize_model(model_class)
-                        zf.writestr(f"{name}.json", json.dumps(data, default=str, indent=2))
-                    zf.writestr("export_info.json", json.dumps({
-                        "exported_at": timezone.now().isoformat(),
-                        "exported_by": request.user.username,
-                        "model_count": len(models_to_export),
-                    }, indent=2))
-
-                from django.core.files.base import ContentFile
-                filename = f"backup_{timezone.now().strftime('%Y%m%d_%H%M%S')}.zip"
-                log.file.save(filename, ContentFile(buffer.getvalue()))
-                log.status = "completed"
-                log.completed_at = timezone.now()
-                summary = {}
-                for name, model_class in models_to_export.items():
-                    summary[name] = model_class.objects.count()
-                log.summary = summary
-                log.save()
-
-                messages.success(request, f"Data exported successfully. {len(models_to_export)} tables exported.")
-            except Exception as e:
-                log.status = "failed"
-                log.notes = str(e)
-                log.save()
-                messages.error(request, f"Export failed: {e}")
-
-            return redirect("data_migration")
-
-        elif action == "import":
-            mode = request.POST.get("mode", "add_new")
-            uploaded_file = request.FILES.get("file")
-
-            if not uploaded_file:
-                messages.error(request, "Please select a backup file to import.")
-                return redirect("data_migration")
-
-            if not uploaded_file.name.endswith(".zip"):
-                messages.error(request, "Only ZIP files are supported.")
-                return redirect("data_migration")
-
-            import io, zipfile, tempfile, shutil
-
-            tmp_path = tempfile.mktemp(suffix=".zip")
-            with open(tmp_path, "wb") as f:
-                for chunk in uploaded_file.chunks():
-                    f.write(chunk)
-
-            log = DataMigrationLog.objects.create(
-                direction="import",
-                mode=mode,
-                status="in_progress",
-                performed_by=request.user,
-                notes=f"Import mode: {dict(DataMigrationLog.IMPORT_MODES).get(mode, mode)}",
-            )
-            from django.core.files.base import ContentFile
-            with open(tmp_path, "rb") as f:
-                log.file.save(uploaded_file.name, ContentFile(f.read()))
-            log.save()
-
-            try:
-                preview_data = {}
-                with zipfile.ZipFile(tmp_path, "r") as zf:
-                    for name in zf.namelist():
-                        if name.endswith(".json") and name != "export_info.json":
-                            model_key = name.replace(".json", "")
-                            content = json.loads(zf.read(name))
-                            preview_data[model_key] = {
-                                "total": len(content),
-                                "sample": content[:3] if content else [],
-                            }
-
-                request.session["import_preview"] = {
-                    "log_id": log.id,
-                    "mode": mode,
-                    "file_path": tmp_path,
-                }
-
-                return render(request, "accounting_app/data_migration.html", {
-                    "export_history": export_history,
-                    "import_history": import_history,
-                    "export_groups": EXPORT_GROUPS,
-                    "selected_groups": selected_groups,
-                    "preview_data": preview_data,
-                    "mode": mode,
-                    "show_preview": True,
-                    "log_id": log.id,
-                })
-
-            except Exception as e:
-                log.status = "failed"
-                log.notes = str(e)
-                log.save()
-                try:
-                    os.unlink(tmp_path)
-                except Exception:
-                    pass
-                messages.error(request, f"Import preview failed: {e}")
-                return redirect("data_migration")
-
-        elif action == "execute_import":
-            log_id = request.POST.get("log_id")
-            mode = request.POST.get("mode", "add_new")
-            file_path = request.POST.get("file_path", "")
-
-            if not log_id:
-                messages.error(request, "Import session not found.")
-                return redirect("data_migration")
-
-            log = get_object_or_404(DataMigrationLog, id=log_id)
-
-            if not os.path.exists(file_path):
-                messages.error(request, "Backup file not found. Please upload again.")
-                return redirect("data_migration")
-
-            from django.db import transaction
-
-            try:
-                import io, zipfile
-                summary = {}
-                with transaction.atomic():
-                    with zipfile.ZipFile(file_path, "r") as zf:
-                        for name in zf.namelist():
-                            if name.endswith(".json") and name != "export_info.json":
-                                model_key = name.replace(".json", "")
-                                model_class = EXPORT_MODELS.get(model_key)
-                                if not model_class:
-                                    continue
-
-                                records = json.loads(zf.read(name))
-                                created = 0
-                                updated = 0
-                                skipped = 0
-
-                                for record in records:
-                                    pk_field = model_class._meta.pk.name
-                                    pk_value = record.get(pk_field)
-
-                                    if mode == "replace":
-                                        model_class.objects.all().delete()
-                                        pk_fields = [f for f in model_class._meta.fields if f.primary_key]
-                                        if pk_fields:
-                                            record.pop(pk_field, None)
-                                        obj = model_class(**_prepare_record_for_model(model_class, record))
-                                        obj.save()
-                                        created += 1
-
-                                    elif mode == "merge":
-                                        existing = _identify_record(model_class, record)
-                                        if existing:
-                                            changed = False
-                                            for field in model_class._meta.fields:
-                                                if field.name in record and field.name != pk_field:
-                                                    setattr(existing, field.name, record[field.name])
-                                                    changed = True
-                                            if changed:
-                                                existing.save()
-                                                updated += 1
-                                            else:
-                                                skipped += 1
-                                        else:
-                                            record.pop(pk_field, None)
-                                            obj = model_class(**_prepare_record_for_model(model_class, record))
-                                            obj.save()
-                                            created += 1
-
-                                    else:
-                                        existing = _identify_record(model_class, record)
-                                        if existing:
-                                            skipped += 1
-                                        else:
-                                            record.pop(pk_field, None)
-                                            obj = model_class(**_prepare_record_for_model(model_class, record))
-                                            obj.save()
-                                            created += 1
-
-                                summary[model_key] = {
-                                    "total": len(records),
-                                    "created": created,
-                                    "updated": updated,
-                                    "skipped": skipped,
-                                }
-
-                log.status = "completed"
-                log.completed_at = timezone.now()
-                log.summary = summary
-                log.save()
-
-                total_created = sum(s["created"] for s in summary.values())
-                total_updated = sum(s["updated"] for s in summary.values())
-                messages.success(request, f"Import completed. {total_created} created, {total_updated} updated.")
-
-            except Exception as e:
-                log.status = "failed"
-                log.notes = str(e)
-                log.save()
-                messages.error(request, f"Import failed: {e}")
-
-            try:
-                os.unlink(file_path)
-            except Exception:
-                pass
-
-            return redirect("data_migration")
-
-    return render(request, "accounting_app/data_migration.html", {
-        "export_history": export_history,
-        "import_history": import_history,
-        "export_groups": EXPORT_GROUPS,
-        "selected_groups": selected_groups,
-    })
 
 
 # ======== MODULE 2: SYSTEM UPDATE MANAGER ========

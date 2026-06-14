@@ -1132,18 +1132,12 @@
                 <a href="{% url 'data_recovery' %}" class="{% if 'data_recovery' in request.resolver_match.url_name %}active{% endif %}">
                     <i class="bi bi-archive"></i> Data Recovery
                 </a>
-                <a href="{% url 'data_migration' %}" class="{% if 'data_migration' in request.resolver_match.url_name %}active{% endif %}">
-                    <i class="bi bi-arrow-left-right"></i> Data Migration
-                </a>
                 <a href="{% url 'system_updates' %}" class="{% if 'system_updates' in request.resolver_match.url_name %}active{% endif %}">
                     <i class="bi bi-cloud-arrow-up"></i> System Updates
                 </a>
                 {% endif %}
                 <a href="{% url 'audit_log' %}" class="{% if 'audit_log' in request.resolver_match.url_name %}active{% endif %}">
                     <i class="bi bi-shield-check"></i> Audit Log
-                </a>
-                <a href="{% url 'activity_log' %}" class="{% if 'activity_log' in request.resolver_match.url_name %}active{% endif %}">
-                    <i class="bi bi-clock-history"></i> Activity Log
                 </a>
                 <a href="{% url 'logout' %}" class="text-danger">
                     <i class="bi bi-box-arrow-right"></i> Logout

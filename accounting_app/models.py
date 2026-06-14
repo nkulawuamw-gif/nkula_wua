@@ -622,22 +622,6 @@ class BudgetLine(models.Model):
         return self.quantity * self.unit_price
 
 
-class ActivityLog(models.Model):
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    action = models.CharField(max_length=100)
-    model_name = models.CharField(max_length=100)
-    object_id = models.PositiveIntegerField(null=True)
-    description = models.TextField()
-    ip_address = models.GenericIPAddressField(null=True)
-    timestamp = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["-timestamp"]
-
-    def __str__(self):
-        return f"{self.user} - {self.action} - {self.model_name}"
-
-
 class BeneficiaryHistory(models.Model):
     ACTION_CHOICES = [
         ("created", "Created"),
@@ -1189,31 +1173,73 @@ class DeletedRecord(models.Model):
     def recover(self):
         from django.apps import apps
         import json
+        import logging
+
+        logger = logging.getLogger(__name__)
         model = apps.get_model('accounting_app', self.model_name.lower())
         if not model:
             return False
-        
+
         data = json.loads(self.data)
-        
-        fk_map = {}
+        original_pk = data.get('id')
+
+        # If the original object still exists in the DB (e.g. delete didn't remove it),
+        # just mark as recovered and return it.
+        if original_pk is not None:
+            try:
+                existing = model.objects.get(pk=original_pk)
+                self.recovered = True
+                self.recovered_at = timezone.now()
+                self.save(update_fields=['recovered', 'recovered_at'])
+                return existing
+            except model.DoesNotExist:
+                pass
+
+        auto_fields = []
+        for field in model._meta.fields:
+            if getattr(field, 'auto_now', False) or getattr(field, 'auto_now_add', False):
+                auto_fields.append(field.attname)
+
+        fk_by_name = {}
+        fk_by_attname = {}
         for field in model._meta.fields:
             if field.is_relation and field.many_to_one:
-                fk_map[field.name] = field.attname
+                fk_by_name[field.name] = field
+                fk_by_attname[field.attname] = field
 
         prepared = {}
         for key, value in data.items():
-            if key in fk_map:
-                prepared[fk_map[key]] = value
-            else:
-                prepared[key] = value
-        
+            if key == 'id':
+                continue
+            if key in auto_fields:
+                continue
+            fk_field = fk_by_name.get(key) or fk_by_attname.get(key)
+            if fk_field is not None:
+                if value is not None:
+                    try:
+                        fk_field.remote_field.model.objects.get(pk=value)
+                    except fk_field.remote_field.model.DoesNotExist:
+                        if fk_field.null:
+                            value = None
+                        else:
+                            logger.warning(
+                                "Skipping recovery of %s #%s: required FK %s=%s does not exist",
+                                self.model_name, self.object_id, key, value
+                            )
+                            return False
+            prepared[key] = value
+
         try:
             obj = model.objects.create(**prepared)
             self.recovered = True
             self.recovered_at = timezone.now()
             self.save(update_fields=['recovered', 'recovered_at'])
             return obj
-        except Exception:
+        except Exception as e:
+            logger.error(
+                "Failed to recover %s #%s: %s", self.model_name, self.object_id, e,
+                exc_info=True
+            )
             return False
 
 
@@ -1298,40 +1324,6 @@ class LandingPageSettings(models.Model):
         if self.is_active:
             LandingPageSettings.objects.filter(is_active=True).exclude(pk=self.pk).update(is_active=False)
         super().save(*args, **kwargs)
-
-
-class DataMigrationLog(models.Model):
-    IMPORT_MODES = [
-        ("add_new", "Add New Records Only"),
-        ("merge", "Merge Existing Records"),
-        ("replace", "Full Replace"),
-    ]
-    STATUS_CHOICES = [
-        ("pending", "Pending"),
-        ("in_progress", "In Progress"),
-        ("completed", "Completed"),
-        ("failed", "Failed"),
-    ]
-    DIRECTION_CHOICES = [
-        ("export", "Export"),
-        ("import", "Import"),
-    ]
-
-    direction = models.CharField(max_length=10, choices=DIRECTION_CHOICES)
-    mode = models.CharField(max_length=20, choices=IMPORT_MODES, blank=True, null=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
-    file = models.FileField(upload_to="migrations/", blank=True, null=True)
-    summary = models.JSONField(default=dict, blank=True)
-    notes = models.TextField(blank=True)
-    performed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    completed_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        ordering = ["-created_at"]
-
-    def __str__(self):
-        return f"{self.get_direction_display()} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
 
 
 class SystemVersion(models.Model):

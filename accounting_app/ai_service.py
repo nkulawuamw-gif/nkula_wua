@@ -252,15 +252,6 @@ CRITICAL: Use DD/MM/YYYY format for all dates. Never include a JSON action block
             created_by=self.user
         )
 
-        from .models import ActivityLog
-        ActivityLog.objects.create(
-            user=self.user,
-            action="Sales",
-            model_name="Invoice",
-            object_id=invoice.pk,
-            description=f"AI created invoice {invoice_number} for {beneficiary.name} - {total_amount}",
-            ip_address="AI Assistant",
-        )
 
         beneficiary.recalculate_totals()
 
@@ -274,7 +265,7 @@ CRITICAL: Use DD/MM/YYYY format for all dates. Never include a JSON action block
         }
 
     def _execute_create_payment(self, data):
-        from .models import Beneficiary, Payment, Account, ActivityLog
+        from .models import Beneficiary, Payment, Account
 
         beneficiary_name = data.get("beneficiary_name", "")
         if not beneficiary_name:
@@ -325,14 +316,6 @@ CRITICAL: Use DD/MM/YYYY format for all dates. Never include a JSON action block
 
         beneficiary.recalculate_totals()
 
-        ActivityLog.objects.create(
-            user=self.user,
-            action="Payment",
-            model_name="Payment",
-            object_id=payment.pk,
-            description=f"AI created payment of {amount} for {beneficiary.name}",
-            ip_address="AI Assistant",
-        )
 
         return {
             "success": True,
